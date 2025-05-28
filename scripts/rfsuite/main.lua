@@ -30,8 +30,7 @@ config.icon = lcd.loadMask("app/gfx/icon.png")                                  
 config.icon_unsupported = lcd.loadMask("app/gfx/unsupported.png")                   -- icon
 config.version = {major = 2, minor = 2, revision = 0, suffix = "RC4"}               -- version of the script
 config.ethosVersion = {1, 6, 2}                                                      -- min version of ethos supported by this script                                                     
-config.supportedMspApiVersion = {"12.06", "12.07","12.08"}                          -- supported msp versions
-config.simulatorApiVersionResponse = {0, 12, 8}                                     -- version of api return by simulator
+config.supportedMspApiVersion = {"12.07","12.08"}                          -- supported msp versions
 config.baseDir = "rfsuite"                                                          -- base directory for the suite. This is only used by msp api to ensure correct path
 config.preferences = config.baseDir .. ".user"                                      -- user preferences folder location
 config.defaultRateProfile = 4 -- ACTUAL                                             -- default rate table [default = 4]
@@ -87,20 +86,14 @@ local userpref_defaults ={
         logmspQueue = false,        -- periodic print the msp queue size
         memstats = false,           -- perioid print memory usage 
         mspexpbytes = 8,
+        apiversion = 2,             -- msp api version to use for simulator    
     }
 }
 
+os.mkdir("SCRIPTS:/" .. rfsuite.config.preferences)
 local userpref_file = "SCRIPTS:/" .. rfsuite.config.preferences .. "/preferences.ini"
 local slave_ini = userpref_defaults
-local master_ini = {}
-
-if not ini.dir_exists("SCRIPTS:/", rfsuite.config.preferences) then
-        os.mkdir("SCRIPTS:/" .. rfsuite.config.preferences)
-end
-
-if rfsuite.ini.file_exists(userpref_file) then
-    master_ini = rfsuite.ini.load_ini_file(userpref_file) or {}
-end
+local master_ini = rfsuite.ini.load_ini_file(userpref_file) or {}
 
 local updated_ini = rfsuite.ini.merge_ini_tables(master_ini, slave_ini)
 rfsuite.preferences = updated_ini
@@ -227,6 +220,13 @@ rfsuite.session.batteryConfig = nil
 rfsuite.session.modelPreferences = nil -- this is used to store the model preferences
 rfsuite.session.modelPreferencesFile = nil -- this is used to store the model preferences file path
 rfsuite.session.dashboardEditingTheme = nil -- this is used to store the dashboard theme being edited in settings
+rfsuite.session.timer = {}
+rfsuite.session.timer.start = nil -- this is used to store the start time of the timer
+rfsuite.session.timer.live = nil -- this is used to store the live timer value while inflight
+rfsuite.session.timer.accrued = nil -- this is used to store the total timer value while inflight
+rfsuite.session.timer.total = nil -- this is used to store the total timer value
+
+
 
 --- Retrieves the version information of the rfsuite module.
 --- 

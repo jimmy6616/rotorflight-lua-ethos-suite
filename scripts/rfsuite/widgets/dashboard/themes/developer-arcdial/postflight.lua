@@ -15,33 +15,34 @@
  * Note: Some icons have been sourced from https://www.flaticon.com/
 ]]--
 
+
 local telemetry = rfsuite.tasks.telemetry
 
 local layout = {
     cols = 2,
-    rows = 6,
+    rows = 3,
     padding = 4
 }
 
 local boxes = {
-    {col = 1, row = 1, rowspan = 4, type = "telemetry", source = "voltage", title = "VOLTAGE", unit = "v", titlepos = "bottom"},
-    {col = 2, row = 1, rowspan = 4, type = "telemetry", source = "fuel", title = "FUEL", unit = "%", titlepos = "bottom", transform = "floor"},
-    {col = 1, row = 5, type = "telemetry", source = "governor", title = "GOVERNOR", titlepos = "bottom", transform = function(v) return rfsuite.utils.getGovernorState(v) end},
-    {col = 2, row = 5, type = "telemetry", source = "rpm", title = "RPM", unit = "rpm", titlepos = "bottom", transform = "floor"},
-    {col = 1, row = 6, type = "flighttime", title = "FLIGHT TIME", titlepos = "bottom"},
-    {col = 2, row = 6, type = "totalflighttime", title = "TOTAL FLIGHT TIME", titlepos = "bottom"}
+    {col=1, row=1, type="text", value=telemetry.getSensorStats('voltage').min, title="MIN VOLTAGE", unit="v", titlepos="bottom"},
+    {col=2, row=1, type="text", value=telemetry.getSensorStats('voltage').max, title="MAX VOLTAGE", unit="v", titlepos="bottom"},
+    {col=1, row=2, type="text", value=telemetry.getSensorStats('current').min, title="MIN CURRENT", unit="A", titlepos="bottom", transform="floor"},
+    {col=2, row=2, type="text", value=telemetry.getSensorStats('current').max, title="MAX CURRENT", unit="A", titlepos="bottom", transform="floor"},
+    {col=1, row=3, type="text", value=telemetry.getSensorStats('temp_mcu').max, title="MAX T.MCU", unit="°", titlepos="bottom", transform="floor"},
+    {col=2, row=3, type="text", value=telemetry.getSensorStats('temp_esc').max, title="MAX E.MCU", unit="°", titlepos="bottom", transform="floor"}
 }
 
 local function wakeup()
-    --rfsuite.utils.log("wakeup inflight", "info")
+    --rfsuite.utils.log("wakeup postflight", "info")
 end
 
 local function event(widget, category, value, x, y)
     --rfsuite.utils.log("Event triggered: " .. category .. " - " .. code, "info")
-end     
+end    
 
 local function paint()
-    --rfsuite.utils.log("paint inflight", "info")
+    --rfsuite.utils.log("paint postflight", "info")
 end
 
 local function screenErrorOverlay(message)
