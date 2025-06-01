@@ -2,7 +2,7 @@ local render = {}
 
 -- Arc drawing helper
 local function drawArc(cx, cy, radius, thickness, angleStart, angleEnd, color, cachedStepRad)
-    local step = 4
+    local step = 1
     local rad_thick = thickness / 2
     angleStart = math.rad(angleStart)
     angleEnd = math.rad(angleEnd)
@@ -165,7 +165,9 @@ function render.paint(x, y, w, h, box)
     else
         valStr = c.novalue or "-"
     end
-    valStr = valStr .. (c.unit or "")
+    if value ~= nil then
+        valStr = valStr .. (c.unit or "")
+    end
     local tw, th = lcd.getTextSize(valStr)
     lcd.drawText(cx - tw/2 + (c.textoffsetx or 0), cy - th/2, valStr)
 

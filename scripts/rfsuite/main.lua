@@ -64,6 +64,7 @@ local userpref_defaults ={
         theme_preflight = "system/default",
         theme_inflight = "system/default",
         theme_postflight = "system/default",
+        loader_style = 1, -- 1 = pulse, 2 = rotate, 4 = static
     },
     events = {
         armflags = true,
@@ -87,7 +88,8 @@ local userpref_defaults ={
         memstats = false,           -- perioid print memory usage 
         mspexpbytes = 8,
         apiversion = 2,             -- msp api version to use for simulator    
-    }
+    },
+    menulastselected = {}
 }
 
 os.mkdir("SCRIPTS:/" .. rfsuite.config.preferences)
@@ -223,11 +225,13 @@ rfsuite.session.dashboardEditingTheme = nil -- this is used to store the dashboa
 rfsuite.session.timer = {}
 rfsuite.session.timer.start = nil -- this is used to store the start time of the timer
 rfsuite.session.timer.live = nil -- this is used to store the live timer value while inflight
-rfsuite.session.timer.accrued = nil -- this is used to store the total timer value while inflight
-rfsuite.session.timer.total = nil -- this is used to store the total timer value
+rfsuite.session.timer.lifetime = nil -- this is used to store the total flight time of a model and store it in the user ini file
+rfsuite.session.timer.session = 0 -- this is used to track flight time for the session
 rfsuite.session.flightCounted = false
-
-
+rfsuite.session.onConnect = {} -- this is used to store the onConnect tasks that need to be run
+rfsuite.session.onConnect.high = false
+rfsuite.session.onConnect.low = false
+rfsuite.session.onConnect.medium = false
 
 --- Retrieves the version information of the rfsuite module.
 --- 
@@ -338,14 +342,15 @@ local function init()
     local cachePath = "cache/" .. cacheFile
     local widgetList
     
-    -- Try to load from cache if it exists
-    if io.open(cachePath, "r") then
-        local ok, cached = pcall(dofile, cachePath)
+    -- Try loading cache if it exists
+    local loadf, loadErr = rfsuite.compiler.loadfile(cachePath)
+    if loadf then
+        local ok, cached = pcall(loadf)
         if ok and type(cached) == "table" then
             widgetList = cached
             rfsuite.utils.log("[cache] Loaded widget list from cache","info")
         else
-            rfsuite.utils.log("[cache] Failed to load cache, rebuilding...","info")
+            rfsuite.utils.log("[cache] Bad cache, rebuilding: "..tostring(cached),"info")
         end
     end
     
