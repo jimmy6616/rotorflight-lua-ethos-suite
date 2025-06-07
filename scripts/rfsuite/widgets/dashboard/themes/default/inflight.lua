@@ -16,17 +16,21 @@
 ]] --
 
 local telemetry = rfsuite.tasks.telemetry
+local utils = rfsuite.widgets.dashboard.utils
 
 local layout = {
-    cols = 2,
-    rows = 1,
+    cols = 4,
+    rows = 14,
     padding = 4
 }
 
 local boxes = {
     {
-        type = "arcgauge",
+        type = "gauge",
+        subtype = "arc",
         col = 1, row = 1,
+        rowspan = 12,
+        colspan = 2,
         source = "voltage",
         unit = "V",
         font = "FONT_XXL",
@@ -38,68 +42,103 @@ local boxes = {
         arcbgcolor = "lightgrey",
         title = "VOLTAGE",
         titlepos = "bottom",
+
+        -- (a) The “static” thresholds (fixed numeric cutoffs, unchanged)
         thresholds = {
-            { value = 30,  fillcolor = "red", textcolor = "white" },
+            { value = 30,  fillcolor = "red",    textcolor = "white" },
             { value = 50,  fillcolor = "orange", textcolor = "white" },
-            { value = 140, fillcolor = "green", textcolor = "white" }
+            { value = 140, fillcolor = "green",  textcolor = "white" }
         },
+
         min = function()
             local cfg = rfsuite.session.batteryConfig
             local cells = (cfg and cfg.batteryCellCount) or 3
-            local minV = (cfg and cfg.vbatmincellvoltage) or 3.0
-            local value = math.max(0, cells * minV)
-            return value
+            local minV  = (cfg and cfg.vbatmincellvoltage) or 3.0
+            return math.max(0, cells * minV)
         end,
+
         max = function()
             local cfg = rfsuite.session.batteryConfig
             local cells = (cfg and cfg.batteryCellCount) or 3
-            local maxV = (cfg and cfg.vbatmaxcellvoltage) or 4.2
-            local value = math.max(0, cells * maxV)
-            return value
-        end,   
+            local maxV  = (cfg and cfg.vbatmaxcellvoltage) or 4.2
+            return math.max(0, cells * maxV)
+        end,
+
         gaugemin = function()
             local cfg = rfsuite.session.batteryConfig
             local cells = (cfg and cfg.batteryCellCount) or 3
-            local minV = (cfg and cfg.vbatmincellvoltage) or 3.0
-            local value = math.max(0, cells * minV)
-            return value
+            local minV  = (cfg and cfg.vbatmincellvoltage) or 3.0
+            return math.max(0, cells * minV)
         end,
+
         gaugemax = function()
             local cfg = rfsuite.session.batteryConfig
             local cells = (cfg and cfg.batteryCellCount) or 3
-            local maxV = (cfg and cfg.vbatmaxcellvoltage) or 4.2
-            local value = math.max(0, cells * maxV)
-            return value
+            local maxV  = (cfg and cfg.vbatmaxcellvoltage) or 4.2
+            return math.max(0, cells * maxV)
         end,
+
+        -- (b) The “dynamic” thresholds (using functions that no longer reference box._cache)
         thresholds = {
             {
                 value = function(box)
-                local gm = box._cache.gaugemin
-                local gM = box._cache.gaugemax
-                return gm + 0.30 * (gM - gm)
+                    -- Fetch the raw gaugemin parameter (could itself be a function)
+                    local raw_gm = utils.getParam(box, "gaugemin")
+                    if type(raw_gm) == "function" then
+                        raw_gm = raw_gm(box)
+                    end
+
+                    -- Fetch the raw gaugemax parameter (could itself be a function)
+                    local raw_gM = utils.getParam(box, "gaugemax")
+                    if type(raw_gM) == "function" then
+                        raw_gM = raw_gM(box)
+                    end
+
+                    -- Return 30% above gaugemin
+                    return raw_gm + 0.30 * (raw_gM - raw_gm)
                 end,
-                color = "red"
+                fillcolor = "red",
+                textcolor = "white"
             },
             {
                 value = function(box)
-                local gm = box._cache.gaugemin
-                local gM = box._cache.gaugemax
-                return gm + 0.50 * (gM - gm)
+                    local raw_gm = utils.getParam(box, "gaugemin")
+                    if type(raw_gm) == "function" then
+                        raw_gm = raw_gm(box)
+                    end
+
+                    local raw_gM = utils.getParam(box, "gaugemax")
+                    if type(raw_gM) == "function" then
+                        raw_gM = raw_gM(box)
+                    end
+
+                    -- Return 50% above gaugemin
+                    return raw_gm + 0.50 * (raw_gM - raw_gm)
                 end,
-                color = "orange"
+                fillcolor = "orange",
+                textcolor = "white"
             },
             {
                 value = function(box)
-                local gM = box._cache.gaugemax
-                return gM
+                    local raw_gM = utils.getParam(box, "gaugemax")
+                    if type(raw_gM) == "function" then
+                        raw_gM = raw_gM(box)
+                    end
+
+                    -- Top‐end threshold = gaugemax
+                    return raw_gM
                 end,
-                color = "green"
-            }     
-        }    
+                fillcolor = "green",
+                textcolor = "white"
+            }
+        }
     },
     {
-        type = "arcgauge",
-        col = 2, row = 1,
+        type = "gauge",
+        subtype = "arc",
+        col = 3, row = 1,
+        rowspan = 12,
+        colspan = 2,
         source = "fuel",
         transform = "floor",
         gaugemin = 0,
@@ -114,15 +153,64 @@ local boxes = {
         arcbgcolor = "lightgrey",
         title = "FUEL",
         titlepos = "bottom",
+
         thresholds = {
-            { value = 30,  fillcolor = "red", textcolor = "white" },
+            { value = 30,  fillcolor = "red",    textcolor = "white" },
             { value = 50,  fillcolor = "orange", textcolor = "white" },
-            { value = 140, fillcolor = "green", textcolor = "white" }
+            { value = 140, fillcolor = "green",  textcolor = "white" }
         },
+
         gaugemin = 0,
-        gaugemax = 100,     
-    }
+        gaugemax = 100
+    },
+    {
+        col = 1,
+        row = 13,
+        rowspan = 2,
+        type = "text",
+        subtype = "governor",
+        nosource = "-",
+        thresholds = {
+            { value = "DISARMED", textcolor = "red"    },
+            { value = "OFF",      textcolor = "red"    },
+            { value = "IDLE",     textcolor = "yellow" },
+            { value = "SPOOLUP",  textcolor = "blue"   },
+            { value = "RECOVERY", textcolor = "orange" },
+            { value = "ACTIVE",   textcolor = "green"  },
+            { value = "THR-OFF",  textcolor = "red"    },
+        }
+    },
+    {
+        col = 4,
+        row = 13,
+        rowspan = 2,
+        type = "time",
+        subtype = "flight",
+    }, 
+    {
+        col = 3,
+        row = 13,
+        rowspan = 2,
+        type = "text",
+        subtype = "telemetry",
+        source = "rpm",
+        nosource = "-",
+        unit = "rpm",
+        transform = "floor"
+    },    
+    {
+        col = 2,
+        row = 13,
+        rowspan = 2,
+        type = "text",
+        subtype = "telemetry",
+        source = "rssi",
+        nosource = "-",
+        unit = "dB",
+        transform = "floor"
+    },    
 }
+
 
 return {
     layout = layout,

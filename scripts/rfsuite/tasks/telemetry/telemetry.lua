@@ -57,6 +57,7 @@ Each sensor configuration includes:
 - crsf: A table of sensor configurations for the crsf protocol.
 - crsfLegacy: A table of sensor configurations for the crsfLegacy protocol.
 - maxmin_trigger: A function to determine if min/max tracking should be active.
+- localizations: A function to transform the sensor value.
 
 Sensors included:
 - RSSI Sensors (rssi)
@@ -84,6 +85,7 @@ local sensorTable = {
         maxmin_trigger = true,
         switch_alerts = true,
         unit = UNIT_DB,
+        unit_string = "dB",
         sensors = {
             sim = {
                 { appId = 0xF101, subId = 0 },
@@ -143,6 +145,7 @@ local sensorTable = {
         set_telemetry_sensors = 3,
         switch_alerts = true,
         unit = UNIT_VOLT,
+        unit_string = "V",
         sensors = {
             sim = {
                 { uid = 0x5002, unit = UNIT_VOLT, dec = 2,
@@ -173,6 +176,7 @@ local sensorTable = {
         set_telemetry_sensors = 60,
         switch_alerts = true,
         unit = UNIT_RPM,
+        unit_string = "rpm",
         sensors = {
             sim = {
                 { uid = 0x5003, unit = UNIT_RPM, dec = nil,
@@ -197,6 +201,7 @@ local sensorTable = {
         set_telemetry_sensors = 18,
         switch_alerts = true,
         unit = UNIT_AMPERE,
+        unit_string = "A",
         sensors = {
             sim = {
                 { uid = 0x5004, unit = UNIT_AMPERE, dec = 0,
@@ -241,6 +246,22 @@ local sensorTable = {
             },
             crsfLegacy = { "GPS Speed" },
         },
+        localizations = function(value)
+            local major = UNIT_DEGREE
+            if value == nil then return nil, major, nil end
+
+            -- Shortcut to the user’s temperature‐unit preference (may be nil)
+            local prefs = rfsuite.preferences.localizations
+            local isFahrenheit = prefs and prefs.temperature_unit == 1
+
+            if isFahrenheit then
+                -- Convert from Celsius to Fahrenheit
+                return value * 1.8 + 32, major, "°F"
+            end
+
+            -- Default: return Celsius
+            return value, major, "°C"
+        end,
     },
 
     -- MCU Temperature Sensors
@@ -266,6 +287,22 @@ local sensorTable = {
             },
             crsfLegacy = { "GPS Sats" },
         },
+        localizations = function(value)
+            local major = UNIT_DEGREE
+            if value == nil then return nil, major, nil end
+
+            -- Shortcut to the user’s temperature‐unit preference (may be nil)
+            local prefs = rfsuite.preferences.localizations
+            local isFahrenheit = prefs and prefs.temperature_unit == 1
+
+            if isFahrenheit then
+                -- Convert from Celsius to Fahrenheit
+                return value * 1.8 + 32, major, "°F"
+            end
+
+            -- Default: return Celsius
+            return value, major, "°C"
+        end,
     },
 
     -- Fuel and Capacity Sensors
@@ -276,6 +313,7 @@ local sensorTable = {
         set_telemetry_sensors = 6,
         switch_alerts = true,
         unit = UNIT_PERCENT,
+        unit_string = "%",
         sensors = {
             sim = {
                 { uid = 0x5007, unit = UNIT_PERCENT, dec = 0,
@@ -299,6 +337,7 @@ local sensorTable = {
         set_telemetry_sensors = 5,
         switch_alerts = true,
         unit = UNIT_MILLIAMPERE_HOUR,
+        unit_string = "mAh",
         sensors = {
             sim = {
                 { uid = 0x5008, unit = UNIT_MILLIAMPERE_HOUR, dec = 0,
@@ -432,6 +471,8 @@ local sensorTable = {
         mandatory = true,
         maxmin_trigger = true,
         set_telemetry_sensors = 15,
+        unit = UNIT_PERCENT,
+        unit_string = "%",
         sensors = {
             sim = {
                 { uid = 0x5014, unit = nil, dec = 0,
@@ -494,6 +535,22 @@ local sensorTable = {
             },
             crsfLegacy = { nil },
         },
+        localizations = function(value)
+            local major = UNIT_METER
+            if value == nil then return nil, major, nil end
+            
+            -- Shortcut to the user’s altitude‐unit preference (may be nil)
+            local prefs = rfsuite.preferences.localizations
+            local isFeet = prefs and prefs.altitude_unit == 1
+
+            if isFeet then
+                -- Convert from meters to feet
+                return value * 3.28084, major, "ft"
+            end
+
+            -- Default: return meters
+            return value, major, "m"
+        end,
     },     
 
     -- Bec Voltage
@@ -504,6 +561,7 @@ local sensorTable = {
         set_telemetry_sensors = nil,
         switch_alerts = true,
         unit = UNIT_VOLT,
+        unit_string = "V",
         sensors = {
             sim = {
                 { uid = 0x5017, unit = UNIT_VOLT, dec = 2,
@@ -688,6 +746,33 @@ function telemetry.getSensorSource(name)
     return nil
 end
 
+--- Retrieves the value of a telemetry sensor by its key.
+-- Looks up the sensor source using the provided sensorKey.
+-- If the sensor source is found, returns its raw value; otherwise, returns nil.
+-- @param sensorKey The key identifying the telemetry sensor.
+-- @return The raw value of the sensor if found, or nil if the sensor does not exist.
+function telemetry.getSensor(sensorKey)
+    local source = telemetry.getSensorSource(sensorKey)
+    if not source then
+        return nil
+    end
+
+    -- get initial defaults
+    local value = source:value()                        -- get the raw value from the source
+    local major = sensorTable[sensorKey].unit or nil    -- use the default unit if defined
+    local minor = nil                                   -- minor version is not possible without a localizations function which we do not have yet
+
+
+    -- if the sensor has a transform function, apply it to the value:
+    if sensorTable[sensorKey] and sensorTable[sensorKey].localizations and type(sensorTable[sensorKey].localizations) == "function" then
+        value, major, minor = sensorTable[sensorKey].localizations(value)
+    end
+
+    -- Return the value
+    return value, major, minor
+
+end
+
 --[[ 
     Function: telemetry.validateSensors
     Purpose: Validates the sensors and returns a list of either valid or invalid sensors based on the input parameter.
@@ -835,7 +920,7 @@ function telemetry.wakeup()
             rfsuite.session.resetTelemetry = false
         end
         lastCacheFlushTime = now
-        telemetry.reset()
+        sensors = {}
     end
 
     -- Reset if telemetry is inactive or telemetry type changed

@@ -16,7 +16,7 @@
 ]]--
 
 local layout = {
-    cols = 3,
+    cols = 8,
     rows = 4,
     padding = 4
 }
@@ -26,12 +26,16 @@ local boxes = {
     col = 1,
     row = 1,
     rowspan = 2,
-    type = "modelimage"
+    colspan = 2,
+    type = "image",
+    subtype = "model"
   },
   {
     col = 1,
     row = 3,
-    type = "telemetry",
+    colspan = 1,
+    type = "text",
+    subtype = "telemetry",
     source = "rssi",
     nosource = "-",
     title = "LQ",
@@ -40,18 +44,39 @@ local boxes = {
     transform = "floor"
   },
   {
+    col = 2,
+    row = 3,
+    type = "time",
+    subtype = "flight",
+    titlepos = "bottom",
+    title = "TIMER",
+  },  
+  {
     col = 1,
     row = 4,
-    type = "governor",
+    colspan = 2,
+    type = "text",
+    subtype = "governor",
     nosource = "-",
     title = "GOVERNOR",
-    titlepos = "bottom"
+    titlepos = "bottom",
+    thresholds = {
+        { value = "DISARMED", textcolor = "red"    },
+        { value = "OFF",      textcolor = "red"    },
+        { value = "IDLE",     textcolor = "yellow" },
+        { value = "SPOOLUP",  textcolor = "blue"   },
+        { value = "RECOVERY", textcolor = "orange" },
+        { value = "ACTIVE",   textcolor = "green"  },
+        { value = "THR-OFF",  textcolor = "red"    },
+      }
   },
   {
-    col = 2,
+    col = 3,
     row = 1,
     rowspan = 2,
-    type = "telemetry",
+    colspan = 3,
+    type = "text",
+    subtype = "telemetry",
     source = "voltage",
     nosource = "-",
     title = "VOLTAGE",
@@ -84,7 +109,7 @@ local boxes = {
           local gmax  = math.max(0, cells * maxV)
           return gmin + 0.30 * (gmax - gmin)
         end,
-        color = "red"
+        textcolor = "red"
       },
       {
         -- 50% of (gmin→gmax) → orange
@@ -97,7 +122,7 @@ local boxes = {
           local gmax  = math.max(0, cells * maxV)
           return gmin + 0.50 * (gmax - gmin)
         end,
-        color = "orange"
+        textcolor = "orange"
       },
       {
         -- 100% of (gmin→gmax) → green
@@ -107,15 +132,17 @@ local boxes = {
           local maxV  = (cfg and cfg.vbatmaxcellvoltage) or 4.2
           return math.max(0, cells * maxV)
         end,
-        color = "green"
+        textcolor = "green"
       }
     }
   },
   {
-    col = 2,
+    col = 3,
     row = 3,
     rowspan = 2,
-    type = "telemetry",
+    colspan = 3,
+    type = "text",
+    subtype = "telemetry",
     source = "current",
     nosource = "-",
     title = "CURRENT",
@@ -123,53 +150,31 @@ local boxes = {
     titlepos = "bottom"
   },
   {
-    col = 3,
+    col = 6,
     row = 1,
     rowspan = 2,
-    type = "telemetry",
+    colspan = 3,
+    type = "text",
+    subtype = "telemetry",
     source = "fuel",
     nosource = "-",
     title = "FUEL",
     unit = "%",
     titlepos = "bottom",
     transform = "floor",
-
-    -- Here are our “dynamic” thresholds for fuel (0‒100%):
-    --   • Anything < 30% → red
-    --   • Anything < 50% → orange
-    --   • Anything ≤ 100% → green
     thresholds = {
-      {
-        value = function(box, currentValue)
-          -- Always 0 → 100 range for “fuel,” so gmin=0, gmax=100:
-          local gmin = 0
-          local gmax = 100
-          return gmin + 0.30 * (gmax - gmin)   -- → 30
-        end,
-        color = "red"
-      },
-      {
-        value = function(box, currentValue)
-          local gmin = 0
-          local gmax = 100
-          return gmin + 0.50 * (gmax - gmin)   -- → 50
-        end,
-        color = "orange"
-      },
-      {
-        value = function(box, currentValue)
-          local gmax = 100
-          return gmax                           -- → 100
-        end,
-        color = "green"
-      }
+      { value = 30, textcolor = "red" },
+      { value = 60, textcolor = "orange" },
+      { value = 100, textcolor = "green" }
     }
   },
   {
-    col = 3,
+    col = 6,
     row = 3,
+    colspan = 3,
     rowspan = 2,
-    type = "telemetry",
+    type = "text",
+    subtype = "telemetry",
     source = "rpm",
     nosource = "-",
     title = "RPM",

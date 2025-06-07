@@ -18,6 +18,17 @@
 -- Dashboard module table
 local dashboard = {}  -- main namespace for all dashboard functionality
 
+-- Supported resolutions
+local supportedResolutions = {
+    { 784, 294 },   -- X20, X20RS etc
+    { 784, 316 },   -- X20, X20RS etc (no title)
+    { 472, 191 },   -- TWXLITE, X18, X18S
+    { 472, 210 },   -- TWXLITE, X18, X18S (no title)
+    { 630, 236 },   -- X14
+    { 630, 258 },   -- X14 (no title)
+}
+
+
 -- Track the previous flight mode so we can detect changes on wakeup
 local lastFlightMode = nil
 
@@ -52,6 +63,8 @@ local objectWakeupsPerCycle = nil       -- number of objects to wake per cycle (
 local objectSchedulerPercentage = 0.2   -- fraction of total objects to wake each cycle (20%)
 local objectsThreadedWakeupCount = 0
 local lastLoadedBoxCount = 0
+
+local unsupportedResolution = false  -- flag to track unsupported resolutions
 
 -- precompute indices of boxes whose object has its own `scheduler` field,
 -- so we can wake them every cycle without scanning all `boxRects`.
@@ -598,7 +611,7 @@ end
 -- @param widget The widget instance to be created.
 -- @return The result of the "create" state function for the given widget.
 function dashboard.create(widget)
-    return callStateFunc("create", widget)
+    return {value=0}
 end
 
 
@@ -608,6 +621,18 @@ end
 -- Otherwise, it falls back to calling a generic state paint function.
 -- @param widget The widget object to be painted.
 function dashboard.paint(widget)
+
+    if unsupportedResolution then
+        -- If the resolution is unsupported, show an error message and return
+        local W, H = lcd.getWindowSize()
+        if H < (system.getVersion().lcdHeight/5) or W < (system.getVersion().lcdWidth/10) then
+           dashboard.utils.screenError(rfsuite.i18n.get("widgets.dashboard.unsupported_resolution"), true, 0.4)
+        else
+            dashboard.overlaymessage(0, 0, W, H , rfsuite.i18n.get("widgets.dashboard.unsupported_resolution"))
+        end     
+        return
+    end
+
 
     -- on the *first* paint, immediately draw the spinner and bail out
     if firstWakeup then
@@ -682,7 +707,7 @@ function dashboard.event(widget, category, value, x, y)
 
     if state == "postflight" and category == EVT_KEY and value == 131 then
         rfsuite.widgets.dashboard.flightmode = "preflight"
-        state = "preflight"
+        dashboard.resetFlightModeAsk()
     end
 
     if category == EVT_KEY and lcd.hasFocus() then
@@ -765,6 +790,17 @@ end
 --
 -- @param widget The widget instance to update.
 function dashboard.wakeup(widget)
+
+    local W, H = lcd.getWindowSize()
+
+    -- Bail out if resolution is not supported:
+    if not dashboard.utils.supportedResolution(W,H, supportedResolutions) then
+        unsupportedResolution = true
+        lcd.invalidate(widget)
+        return
+    else
+        unsupportedResolution = false    
+    end
 
     -- load themes on first wakeup
     if firstWakeup then
@@ -962,7 +998,7 @@ function dashboard.savePreference(key, value)
 end
 
 -- Ask user for confirmation before erasing dataflash
-local function resetFlightModeAsk()
+function dashboard.resetFlightModeAsk()
 
     local buttons = {{
         label = rfsuite.i18n.get("app.btn_ok"),
@@ -998,7 +1034,7 @@ end
 function dashboard.menu(widget)
 
     return {
-        {rfsuite.i18n.get("widgets.dashboard.reset_flight"), resetFlightModeAsk},
+        {rfsuite.i18n.get("widgets.dashboard.reset_flight"), dashboard.resetFlightModeAsk},
     }
 end
 

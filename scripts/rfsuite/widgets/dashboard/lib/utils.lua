@@ -20,6 +20,28 @@ local utils = {}
 local imageCache = {}
 local fontCache 
 
+
+-- Returns true if (W, H) exactly matches one of the entries in supportedResolutions.
+--   W, H:               current window width and height (numbers)
+--   supportedResolutions: an array of {width, height} pairs, e.g.
+--         {
+--           { 784, 294 },
+--           { 784, 316 },
+--           { 472, 191 },
+--           { 472, 210 },
+--           { 630, 236 },
+--           { 630, 258 },
+--         }
+function utils.supportedResolution(W,H, supportedResolutions)
+
+    for _, res in ipairs(supportedResolutions) do
+        if W == res[1] and H == res[2] then
+            return true
+        end
+    end
+    return false
+end
+
 --- Draws a bar-style needle (such as for a gauge or meter) at a specified position, angle, and size.
 -- The needle is rendered as a thick, filled bar with a specified thickness and length, centered at (cx, cy),
 -- and rotated by angleDeg degrees. The needle is drawn with a slight overlap at both ends for visual effect.
@@ -32,48 +54,14 @@ local fontCache
 -- @param color number: Color value to use for drawing the needle.
 function utils.drawBarNeedle(cx, cy, length, thickness, angleDeg, color)
     local angleRad = math.rad(angleDeg)
-    local cosA = math.cos(angleRad)
-    local sinA = math.sin(angleRad)
-    local perpA = angleRad + math.pi / 2
-
-    local tipFudge = 2   -- px: overlap past tip for both ends
-
-    local dx = math.cos(perpA) * (thickness / 2)
-    local dy = math.sin(perpA) * (thickness / 2)
-
-    -- First set: needle from base to tip (with tip overdrawn)
-    local base1X = cx + dx
-    local base1Y = cy + dy
-    local base2X = cx - dx
-    local base2Y = cy - dy
-    local tipX = cx + cosA * (length + tipFudge)
-    local tipY = cy + sinA * (length + tipFudge)
-    local tip1X = tipX + dx
-    local tip1Y = tipY + dy
-    local tip2X = tipX - dx
-    local tip2Y = tipY - dy
-
-    -- Second set: from tip *back* to base, mirrored
-    local base3X = tipX + dx
-    local base3Y = tipY + dy
-    local base4X = tipX - dx
-    local base4Y = tipY - dy
-    local backX = cx - cosA * tipFudge
-    local backY = cy - sinA * tipFudge
-    local back1X = backX + dx
-    local back1Y = backY + dy
-    local back2X = backX - dx
-    local back2Y = backY - dy
-
+    local step = 1
+    local rad_thick = thickness / 2
     lcd.color(color)
-    -- First rectangle/needle: base to tip
-    lcd.drawFilledTriangle(base1X, base1Y, tip1X, tip1Y, tip2X, tip2Y)
-    lcd.drawFilledTriangle(base1X, base1Y, tip2X, tip2Y, base2X, base2Y)
-    -- Second rectangle/needle: tip (thick end) overlaps back toward base
-    lcd.drawFilledTriangle(base3X, base3Y, back1X, back1Y, back2X, back2Y)
-    lcd.drawFilledTriangle(base3X, base3Y, back2X, back2Y, base4X, base4Y)
-    -- (You can draw a centerline if you like)
-    lcd.drawLine(cx, cy, tipX, tipY)
+    for i = 0, length, step do
+        local px = cx + i * math.cos(angleRad)
+        local py = cy + i * math.sin(angleRad)
+        lcd.drawFilledCircle(px, py, rad_thick)
+    end
 end
 
 --- Returns a table of font lists appropriate for the current radio's screen resolution.
@@ -92,25 +80,25 @@ function utils.getFontListsForResolution()
         ["800x480"] = {
             value_default = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L, FONT_XL, FONT_XXL, FONT_XXXXL},
             value_reduced = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L},
-            value_title = FONT_XS
+            value_title   = {FONT_XXS, FONT_XS, FONT_S, FONT_STD}
         },
         -- TANDEM X18, TWIN X Lite (480x320)
         ["480x320"] = {
             value_default = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L, FONT_XL},
             value_reduced = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L},
-            value_title = FONT_XXS
+            value_title   = {FONT_XXS, FONT_XS, FONT_S}
         },
         -- Horus X10, Horus X12 (480x272)
         ["480x272"] = {
             value_default = {FONT_XXS, FONT_XS, FONT_S, FONT_STD},
             value_reduced = {FONT_XXS, FONT_XS, FONT_S},
-            value_title = FONT_XXS
+            value_title   = {FONT_XXS, FONT_XS, FONT_S}
         },
         -- Twin X14 (632x314)
         ["640x360"] = {
             value_default = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L, FONT_XL},
             value_reduced = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L},
-            value_title = FONT_XXS
+            value_title   = {FONT_XXS, FONT_XS, FONT_S}
         }
     }
     if not radios[resolution] then
@@ -134,13 +122,30 @@ end
 --- Displays an error message centered on the screen, automatically selecting the largest font size
 --- that fits within 90% of the screen's width and height. The text color adapts to the current
 --- dark mode setting.
--- @param msg string: The error message to display.
-function utils.screenError(msg)
+-- @param msg string:  The error message to display.
+-- @param bool      :  The draw border around the text (default true).
+-- @param pct number:  The percentage of the screen size to use for text fitting (default 0.5).
+-- @param padX number: Horizontal padding around the text (default 8).
+-- @param padY number: Vertical padding around the text (default 4).
+function utils.screenError(msg, border, pct, padX, padY)
+    -- Default values
+    if not pct then pct = 0.5 end
+    if border == nil then border = true end
+    if not padX then padX = 8 end      -- default horizontal padding
+    if not padY then padY = 4 end      -- default vertical padding
+
+    -- Get display size and mode
     local w, h = lcd.getWindowSize()
     local isDarkMode = lcd.darkMode()
+
+    -- Available fonts to try
     local fonts = {FONT_XXS, FONT_XS, FONT_S, FONT_STD, FONT_L, FONT_XL, FONT_XXL, FONT_XXXXL}
-    local maxW, maxH = w * 0.9, h * 0.9
+    
+    -- Compute maximum allowed dimensions for text
+    local maxW, maxH = w * pct, h * pct
     local bestFont, bestW, bestH = FONT_XXS, 0, 0
+
+    -- Choose the largest font that fits within maxW x maxH
     for _, font in ipairs(fonts) do
         lcd.font(font)
         local tsizeW, tsizeH = lcd.getTextSize(msg)
@@ -151,13 +156,28 @@ function utils.screenError(msg)
             break
         end
     end
+
+    -- Set chosen font
     lcd.font(bestFont)
+
+    -- Determine text and border color
     local textColor = isDarkMode and lcd.RGB(255, 255, 255, 1) or lcd.RGB(90, 90, 90)
     lcd.color(textColor)
+
+    -- Calculate centered text position
     local x = (w - bestW) / 2
     local y = (h - bestH) / 2
+
+    -- Draw border rectangle if requested
+    if border then
+        lcd.drawRectangle(x - padX, y - padY, bestW + padX * 2, bestH + padY * 2)
+    end
+
+    -- Draw the text centered
     lcd.drawText(x, y, msg)
 end
+
+
 
 --- Calculates the X coordinate for text alignment within a given width.
 -- @param text string: The text to be aligned.
@@ -189,7 +209,7 @@ function utils.resolveColor(value, variantFactor)
         white     = {255, 255, 255},
         black     = {0, 0, 0},
         gray      = {90, 90, 90},
-        grey      = {90, 90, 90},
+        grey      = {185, 185, 185},
         orange    = {255, 165, 0},
         yellow    = {255, 255, 0},
         cyan      = {0, 255, 255},
@@ -279,6 +299,10 @@ end
 function utils.resolveThemeColor(colorkey, value)
     -- If already a number (e.g. lcd.RGB), just return
     if type(value) == "number" then return value end
+    -- an oddbal of a string "transparent" should return nil
+    if type(value) == "string" and value == "transparent" then
+        return nil
+    end    
     -- If string (like "red"), use resolveColor
     if type(value) == "string" then
         local resolved = utils.resolveColor(value)
@@ -313,245 +337,296 @@ function utils.resolveThemeColorArray(colorkey, arr)
     return resolved
 end
 
-
---[[----------------------------------------------------------------------------
-    Draws a telemetry value box with colored background, value, title, unit, 
-    and flexible padding/alignment. 
-    All color arguments (bgcolor, textcolor, titlecolor) must be resolved numbers
-    (not strings). Text sizing can be static (via 'font') or dynamic if omitted.
-
-    Args:
-      x, y, w, h         : Box geometry
-      title              : Title string (shown above or below the value)
-      value              : Main value (shown in large text)
-      unit               : Optional unit string (appended to value)
-      bgcolor            : Box background color (number, resolved)
-      titlealign         : Title alignment ("center", "left", "right")
-      valuealign         : Value alignment ("center", "left", "right")
-      titlecolor         : Title text color (number, resolved)
-      titlepos           : Title position ("top" or "bottom")
-      titlepadding       : Padding applied to all sides of title (overridden by next 4 if set)
-      titlepaddingleft   : Left padding for title
-      titlepaddingright  : Right padding for title
-      titlepaddingtop    : Top padding for title
-      titlepaddingbottom : Bottom padding for title
-      valuepadding       : Padding applied to all sides of value (overridden by next 4 if set)
-      valuepaddingleft   : Left padding for value
-      valuepaddingright  : Right padding for value
-      valuepaddingtop    : Top padding for value
-      valuepaddingbottom : Bottom padding for value
-      font               : Font to use for value (e.g., "FONT_XL") or nil for dynamic sizing
-      textcolor          : Value/main label text color (number, resolved)
-------------------------------------------------------------------------------]]
+-- Draws a telemetry value box with colored background, value, title, unit, and flexible padding/alignment.
+--
+-- All color arguments (bgcolor, textcolor, titlecolor) must be resolved numbers (not strings).
+-- Text sizing can be static (via 'font'/'titlefont') or dynamic if omitted.
+--
+-- @param x                number          X-coordinate of the box.
+-- @param y                number          Y-coordinate of the box.
+-- @param w                number          Width of the box.
+-- @param h                number          Height of the box.
+-- @param title            string          (Optional) Title string (shown above or below the value).
+-- @param titlepos         string          (Optional) Title position: "top" or "bottom". Defaults to "top".
+-- @param titlealign       string          (Optional) Title alignment: "center", "left", or "right".
+-- @param titlefont        string|number   (Optional) Font to use for title (e.g., "FONT_XL"). If nil, uses dynamic sizing.
+-- @param titlespacing     number          (Optional) Controls the vertical gap between title and value text.
+-- @param titlecolor       number          (Optional) Title text color (resolved LCD color number).
+-- @param titlepadding     number          (Optional) Padding for all sides of the title (overridden by the next four if set).
+-- @param titlepaddingleft number          (Optional) Left padding for the title.
+-- @param titlepaddingright number         (Optional) Right padding for the title.
+-- @param titlepaddingtop  number          (Optional) Top padding for the title.
+-- @param titlepaddingbottom number        (Optional) Bottom padding for the title.
+-- @param displayValue     string|number   Main value to display (pre-formatted for display).
+-- @param unit             string          (Optional) Unit string appended to value, if provided.
+-- @param font             string|number   (Optional) Font to use for the value (e.g., "FONT_XL"). If nil, uses dynamic sizing.
+-- @param valuealign       string          (Optional) Value alignment: "center", "left", or "right".
+-- @param textcolor        number          (Optional) Value/main label text color (resolved LCD color number).
+-- @param valuepadding     number          (Optional) Padding for all sides of the value (overridden by the next four if set).
+-- @param valuepaddingleft number          (Optional) Left padding for the value.
+-- @param valuepaddingright number         (Optional) Right padding for the value.
+-- @param valuepaddingtop  number          (Optional) Top padding for the value.
+-- @param valuepaddingbottom number        (Optional) Bottom padding for the value.
+-- @param bgcolor          number          (Optional) Box background color (must be a resolved LCD color number).
 
 function utils.box(
     x, y, w, h,
-    title, value, unit, bgcolor,
-    titlealign, valuealign, titlecolor, titlepos,
-    titlepadding, titlepaddingleft, titlepaddingright, titlepaddingtop, titlepaddingbottom,
-    valuepadding, valuepaddingleft, valuepaddingright, valuepaddingtop, valuepaddingbottom,
-    font, textcolor
+    title, titlepos, titlealign, titlefont, titlespacing,
+    titlecolor, titlepadding, titlepaddingleft, titlepaddingright,
+    titlepaddingtop, titlepaddingbottom,
+    displayValue, unit, font, valuealign, textcolor,
+    valuepadding, valuepaddingleft, valuepaddingright,
+    valuepaddingtop, valuepaddingbottom,
+    bgcolor,
+    image, imagewidth, imageheight, imagealign
 )
-    
-    -- Coerce unit to string if not nil and not string
-    if unit ~= nil and type(unit) ~= "string" then
-        unit = tostring(unit)
-    end
+    -- Padding defaults
+    local DEFAULT_TITLE_PADDING = 0
+    local DEFAULT_VALUE_PADDING = 6
+    local DEFAULT_TITLE_SPACING = 6
+
+    titlepaddingleft   = titlepaddingleft   or titlepadding   or DEFAULT_TITLE_PADDING
+    titlepaddingright  = titlepaddingright  or titlepadding   or DEFAULT_TITLE_PADDING
+    titlepaddingtop    = titlepaddingtop    or titlepadding   or DEFAULT_TITLE_PADDING
+    titlepaddingbottom = titlepaddingbottom or titlepadding   or DEFAULT_TITLE_PADDING
+
+    valuepaddingleft   = valuepaddingleft   or valuepadding   or DEFAULT_VALUE_PADDING
+    valuepaddingright  = valuepaddingright  or valuepadding   or DEFAULT_VALUE_PADDING
+    valuepaddingtop    = valuepaddingtop    or valuepadding   or DEFAULT_VALUE_PADDING
+    valuepaddingbottom = valuepaddingbottom or valuepadding   or DEFAULT_VALUE_PADDING
+
+    titlespacing = titlespacing or DEFAULT_TITLE_SPACING
 
     -- Draw background
-    lcd.color(bgcolor)
-    lcd.drawFilledRectangle(x, y, w, h)
+    if bgcolor then
+        lcd.color(bgcolor)
+        lcd.drawFilledRectangle(x, y, w, h)
+    end
 
-    -- Padding resolution (default 0)
-    titlepaddingleft   = titlepaddingleft   or titlepadding   or 0
-    titlepaddingright  = titlepaddingright  or titlepadding   or 0
-    titlepaddingtop    = titlepaddingtop    or titlepadding   or 0
-    titlepaddingbottom = titlepaddingbottom or titlepadding   or 0
-
-    valuepaddingleft   = valuepaddingleft   or valuepadding   or 0
-    valuepaddingright  = valuepaddingright  or valuepadding   or 0
-    valuepaddingtop    = valuepaddingtop    or valuepadding   or 0
-    valuepaddingbottom = valuepaddingbottom or valuepadding   or 0
-
+    -- Cache fonts if not already
     if not fontCache then
         fontCache = utils.getFontListsForResolution()
     end
 
-    -- Draw value text (centered, uses textcolor)
-    if value ~= nil then
-        local str = tostring(value) .. (unit or "")
-        local unitIsDegree = (unit == "°" or (unit and unit:find("°")))
-        local strForWidth = unitIsDegree and (tostring(value) .. "0") or str
-
-        local availH = h - valuepaddingtop - valuepaddingbottom
-        local fonts = fontCache.value_default
-
-        local region_x = x + valuepaddingleft
-        local region_y = y + valuepaddingtop
-        local region_w = w - valuepaddingleft - valuepaddingright
-        local region_h = h - valuepaddingtop - valuepaddingbottom
-
-        local bestFont, bestW, bestH
-
-        if font and _G[font] then
-            bestFont = _G[font]
-            lcd.font(bestFont)
-            bestW, bestH = lcd.getTextSize(strForWidth)
+    -- Title font selection, auto-fit logic
+    local actualTitleFont, tsizeW, tsizeH = nil, 0, 0
+    if title then
+        local minValueFontH = 9999
+        for _, vf in ipairs(fontCache.value_default or {FONT_STD}) do
+            lcd.font(vf)
+            local _, vh = lcd.getTextSize("8")
+            if vh < minValueFontH then minValueFontH = vh end
+        end
+        if titlefont and _G[titlefont] then
+            actualTitleFont = _G[titlefont]
+            lcd.font(actualTitleFont)
+            tsizeW, tsizeH = lcd.getTextSize(title)
         else
-            bestFont, bestW, bestH = FONT_XXS, 0, 0
-            lcd.font(FONT_XL)
-            local _, xlFontHeight = lcd.getTextSize("8")
-            if xlFontHeight > availH * 0.5 then
-                fonts = fontCache.value_reduced
-            end
-            for _, tryFont in ipairs(fonts) do
+            for _, tryFont in ipairs(fontCache.value_title or {FONT_XS}) do
                 lcd.font(tryFont)
-                local tW, tH = lcd.getTextSize(strForWidth)
-                if tW <= region_w and tH <= region_h then
-                    bestFont, bestW, bestH = tryFont, tW, tH
-                else
+                local tW, tH = lcd.getTextSize(title)
+                local remH = h - titlepaddingtop - tH - titlepaddingbottom - valuepaddingtop - valuepaddingbottom
+                if tW <= w - titlepaddingleft - titlepaddingright and tH > 0 and remH >= minValueFontH then
+                    actualTitleFont, tsizeW, tsizeH = tryFont, tW, tH
                     break
                 end
             end
-            lcd.font(bestFont)
+            if not actualTitleFont then
+                actualTitleFont = (fontCache.value_title or {FONT_XS})[#(fontCache.value_title or {FONT_XS})]
+                lcd.font(actualTitleFont)
+                tsizeW, tsizeH = lcd.getTextSize(title)
+            end
+        end
+    end
+
+    -- Calculate region for value/image
+    local region_vx, region_vy, region_vw, region_vh
+    if title and (titlepos or "top") == "top" then
+        region_vy = y + titlepaddingtop + tsizeH + titlepaddingbottom + titlespacing + valuepaddingtop
+        region_vh = h - (region_vy - y) - valuepaddingbottom
+    elseif title and titlepos == "bottom" then
+        region_vy = y + valuepaddingtop
+        region_vh = h - tsizeH - titlepaddingtop - titlepaddingbottom - titlespacing - valuepaddingtop - valuepaddingbottom
+    else
+        region_vy = y + valuepaddingtop
+        region_vh = h - valuepaddingtop - valuepaddingbottom
+    end
+    region_vx = x + valuepaddingleft
+    region_vw = w - valuepaddingleft - valuepaddingright
+
+    -- Draw image if specified (fallback to displayValue)
+    if image and rfsuite.utils.loadImage then
+        imageCache = imageCache or {}
+        local cacheKey = image or "default_image"
+        local bitmapPtr = imageCache[cacheKey]
+        if not bitmapPtr then
+            bitmapPtr = rfsuite.utils.loadImage(image, nil, "widgets/dashboard/gfx/logo.png")
+            imageCache[cacheKey] = bitmapPtr
+        end
+        if bitmapPtr then
+
+            local default_img_w = region_vw
+            local default_img_h = region_vh
+            local img_w = imagewidth or default_img_w
+            local img_h = imageheight or default_img_h
+            local align = imagealign or "center"
+            local img_x, img_y = region_vx, region_vy
+            if align == "center" then
+                img_x = region_vx + (region_vw - img_w) / 2
+            elseif align == "right" then
+                img_x = region_vx + region_vw - img_w
+            else
+                img_x = region_vx
+            end
+            if align == "center" then
+                img_y = region_vy + (region_vh - img_h) / 2
+            elseif align == "bottom" then
+                img_y = region_vy + region_vh - img_h
+            else
+                img_y = region_vy
+            end
+            lcd.drawBitmap(img_x, img_y, bitmapPtr, img_w, img_h)
+        end
+    elseif displayValue ~= nil then
+
+        local value_str = tostring(displayValue) .. (unit or "")
+
+        -- replace . and % symbols with 'W' for width calculation
+        -- note.  gsub %% is escaping the % symbol as % is the lua pattern escape character
+        --        multi subs are used because different characters need different replacements
+        local value_str_calc = string.gsub(value_str, "[%%]", "W")
+              value_str_calc = string.gsub(value_str, "[°]", ".")
+
+        local valueFont, bestW, bestH = FONT_XXS, 0, 0
+        if font and _G[font] then
+            valueFont = _G[font]
+            lcd.font(valueFont)
+
+            bestW, bestH = lcd.getTextSize(value_str_calc)
+        else
+            for _, tryFont in ipairs(fontCache.value_default) do
+                lcd.font(tryFont)
+                local tW, tH = lcd.getTextSize(value_str_calc)
+                if tW <= region_vw and tH <= region_vh then
+                    valueFont, bestW, bestH = tryFont, tW, tH
+                end
+            end
+            lcd.font(valueFont)
         end
 
-        local sy = region_y + (region_h - bestH) / 2
+        -- Optional: vertical fudge for title placement
+        local fudgeTitle = (title and (titlepos or "top") == "top")
+            and -math.floor(bestH * 0.15 + 0.5)
+            or (title and titlepos == "bottom")
+                and math.floor(bestH * 0.15 + 0.5)
+            or 0
+
+        local sy = region_vy + ((region_vh - bestH) / 2) + fudgeTitle
         local align = (valuealign or "center"):lower()
         local sx
         if align == "left" then
-            sx = region_x
+            sx = region_vx
         elseif align == "right" then
-            sx = region_x + region_w - bestW
+            sx = region_vx + region_vw - bestW
         else
-            sx = region_x + (region_w - bestW) / 2
+            sx = region_vx + (region_vw - bestW) / 2 
         end
-
         lcd.color(textcolor)
-        lcd.drawText(sx, sy, str)
+        lcd.drawText(sx, sy, value_str)
     end
 
-    -- Draw title (top or bottom, uses titlecolor)
+    -- Draw title text (centered, at top or bottom)
     if title then
-        lcd.font(fontCache.value_title)
-        local tsizeW, tsizeH = lcd.getTextSize(title)
-        local region_x = x + titlepaddingleft
-        local region_w = w - titlepaddingleft - titlepaddingright
-        local sy = (titlepos == "bottom")
+        lcd.font(actualTitleFont)
+        local region_tw = w - titlepaddingleft - titlepaddingright
+        local sy = (titlepos or "top") == "bottom"
             and (y + h - titlepaddingbottom - tsizeH)
             or (y + titlepaddingtop)
         local align = (titlealign or "center"):lower()
         local sx
         if align == "left" then
-            sx = region_x
+            sx = x + titlepaddingleft
         elseif align == "right" then
-            sx = region_x + region_w - tsizeW
+            sx = x + titlepaddingleft + region_tw - tsizeW
         else
-            sx = region_x + (region_w - tsizeW) / 2
+            sx = x + titlepaddingleft + (region_tw - tsizeW) / 2
         end
         lcd.color(titlecolor)
         lcd.drawText(sx, sy, title)
     end
 end
 
---    Draws an image box, using imageCache and flexible alignment/padding.
---    Optionally overlays a title.
---    Args: x, y, w, h, ...   - see code above for full param list.
---- Draws an image box widget with optional title, background color, image alignment, and padding.
--- 
--- @param x number: The x-coordinate of the box.
--- @param y number: The y-coordinate of the box.
--- @param w number: The width of the box.
--- @param h number: The height of the box.
--- @param color number: (Unused) Color parameter, reserved for future use.
--- @param title string: (Optional) Title text to display above or below the image.
--- @param imagePath string: Path to the image file to display.
--- @param imagewidth number: (Optional) Width of the image. Defaults to available region width.
--- @param imageheight number: (Optional) Height of the image. Defaults to available region height.
--- @param imagealign string: (Optional) Alignment of the image ("left", "center", "right", "top", "bottom"). Defaults to "center".
--- @param bgcolor number|string: (Optional) Background color of the box.
--- @param titlealign string: (Optional) Alignment of the title ("left", "center", "right"). Defaults to "center".
--- @param titlecolor number|string: (Optional) Color of the title text.
--- @param titlepos string: (Optional) Position of the title ("top", "bottom"). Defaults to "top".
--- @param imagepadding number: (Optional) Padding applied to all sides of the image.
--- @param imagepaddingleft number: (Optional) Padding on the left side of the image.
--- @param imagepaddingright number: (Optional) Padding on the right side of the image.
--- @param imagepaddingtop number: (Optional) Padding on the top side of the image.
--- @param imagepaddingbottom number: (Optional) Padding on the bottom side of the image.
-function utils.imageBox(
-    x, y, w, h, color, title, imagePath, imagewidth, imageheight, imagealign, bgcolor,
-    titlealign, titlecolor, titlepos,
-    imagepadding, imagepaddingleft, imagepaddingright, imagepaddingtop, imagepaddingbottom
-)
-    local isDARKMODE = lcd.darkMode()
-    local resolvedBg = utils.resolveColor(bgcolor)
-    lcd.color(resolvedBg or (isDARKMODE and lcd.RGB(40, 40, 40) or lcd.RGB(240, 240, 240)))
-    lcd.drawFilledRectangle(x, y, w, h)
+--- Resolves a color (typically textcolor or fillcolor) for a value using flexible threshold logic.
+-- If the box table includes a 'thresholds' array:
+    -- For string values, returns the colorKey (e.g. textcolor/fillcolor) for the threshold whose value exactly matches.
+    -- For numeric values, returns the colorKey for the first threshold whose value is greater than or equal to the given value (less-than-or-equal logic).
+    -- For function-valued thresholds, calls the function with (box, value) to resolve the thresholdValue.
+    -- Falls back to the colorKey in box, or a theme default, if no threshold matches.
+-- @param value              number|string  -- The value to evaluate against thresholds.
+-- @param box                table          -- The widget's config table (may contain thresholds, textcolor, fillcolor, etc.)
+-- @param colorKey           string         -- The key to look up in thresholds and box (e.g. "textcolor" or "fillcolor").
+-- @param fallbackThemeKey   string         -- The theme key to use if no color is found (e.g. "textcolor", "fillcolor").
+-- @return                   number         -- The LCD color to use for rendering.
 
-    imagepaddingleft = imagepaddingleft or imagepadding or 0
-    imagepaddingright = imagepaddingright or imagepadding or 0
-    imagepaddingtop = imagepaddingtop or imagepadding or 0
-    imagepaddingbottom = imagepaddingbottom or imagepadding or 0
-
-    local region_x = x + imagepaddingleft
-    local region_y = y + imagepaddingtop
-    local region_w = w - imagepaddingleft - imagepaddingright
-    local region_h = h - imagepaddingtop - imagepaddingbottom
-
-    if rfsuite and rfsuite.utils and rfsuite.utils.loadImage and lcd and lcd.drawBitmap then
-        local cacheKey = imagePath
-        local bitmapPtr = imageCache[cacheKey]
-        if not bitmapPtr then
-            bitmapPtr = rfsuite.utils.loadImage(imagePath, nil, "widgets/dashboard/default_image.png")
-            imageCache[cacheKey] = bitmapPtr
-        end
-        if bitmapPtr then
-            local img_w = imagewidth or region_w
-            local img_h = imageheight or region_h
-            local align = imagealign or "center"
-            local img_x, img_y = region_x, region_y
-
-            -- Horizontal alignment
-            if align == "center" then
-                img_x = region_x + (region_w - img_w) / 2
-            elseif align == "right" then
-                img_x = region_x + region_w - img_w
-            else -- left
-                img_x = region_x
-            end
-            -- Vertical alignment
-            if align == "center" then
-                img_y = region_y + (region_h - img_h) / 2
-            elseif align == "bottom" then
-                img_y = region_y + region_h - img_h
-            else -- top
-                img_y = region_y
+function utils.resolveThresholdColor(value, box, colorKey, fallbackThemeKey)
+    local color = utils.resolveThemeColor(fallbackThemeKey, utils.getParam(box, colorKey))
+    local thresholds = utils.getParam(box, "thresholds")
+    if thresholds and value ~= nil then
+        for _, t in ipairs(thresholds) do
+            local thresholdValue = t.value
+            if type(thresholdValue) == "function" then
+                thresholdValue = thresholdValue(box, value)
             end
 
-            if title and title ~= "" then
-                lcd.font(FONT_S)
-                local tsize_w, tsize_h = lcd.getTextSize(title)
-                local sx
-                if titlealign == "left" then
-                    sx = x
-                elseif titlealign == "right" then
-                    sx = x + w - tsize_w
-                else
-                    sx = x + (w - tsize_w) / 2
-                end
-                local useColor = utils.resolveColor(titlecolor) or (lcd.darkMode() and lcd.RGB(255,255,255,1) or lcd.RGB(90,90,90))
-                lcd.color(useColor)
-                if titlepos == "bottom" then
-                    lcd.drawText(sx, y + h - tsize_h, title)
-                else
-                    lcd.drawText(sx, y, title)
-                    img_y = img_y + tsize_h + 2
-                end
+            if type(value) == "string" and thresholdValue == value and t[colorKey] then
+                color = utils.resolveThemeColor(colorKey, t[colorKey])
+                break
+            elseif type(value) == "number" and type(thresholdValue) == "number" and value <= thresholdValue and t[colorKey] then
+                color = utils.resolveThemeColor(colorKey, t[colorKey])
+                break
             end
-
-            lcd.drawBitmap(img_x, img_y, bitmapPtr, img_w, img_h)
         end
     end
+    return color
+end
+
+--- Transforms and formats a numeric value for display, applying any configured transform and decimals.
+--
+-- This function checks the given `box` for a `transform` property (either a string or a function).
+-- If provided, it applies the transformation to the input value:
+--   - "floor":   Rounds down to nearest integer.
+--   - "ceil":    Rounds up to nearest integer.
+--   - "round":   Rounds to nearest integer.
+--   - function:  Calls the function with the value and uses the result.
+-- Next, if a `decimals` property is present in the box, it formats the value to the specified number
+-- of decimal places as a string. If neither is set, the raw value is returned as a string.
+--
+-- @param value number         The raw numeric value to be transformed and formatted.
+-- @param box   table          The box configuration table, containing optional `transform` and `decimals`.
+-- @return      string         The transformed and formatted value, ready for display.
+
+function utils.transformValue(value, box)
+    local transform = utils.getParam(box, "transform")
+    -- Apply transformation if configured
+    if transform then
+        if type(transform) == "function" then
+            value = transform(value)
+        elseif transform == "floor" then
+            value = math.floor(value)
+        elseif transform == "ceil" then
+            value = math.ceil(value)
+        elseif transform == "round" then
+            value = math.floor(value + 0.5)
+        end
+    end
+    local decimals = utils.getParam(box, "decimals")
+    -- Apply decimal formatting if configured
+    if decimals ~= nil and value ~= nil then
+        value = string.format("%." .. decimals .. "f", value)
+    elseif value ~= nil then
+        value = tostring(value)
+    end
+    return value
 end
 
 --- Sets the background color of the LCD based on the current theme (dark or light mode).
@@ -565,115 +640,6 @@ function utils.setBackgroundColourBasedOnTheme()
         lcd.color(lcd.RGB(209, 208, 208))
     end
     lcd.drawFilledRectangle(0, 0, w, h)
-end
-
---  Draws the model image (icon) box, trying craftName, modelID, or model.bitmap().
---  Uses padding and alignment. Shows error if no image found.
---  Args: x, y, w, h, ...   - see code above for full param list.
---- Draws a model image box widget with optional title and customizable layout.
--- 
--- This function renders a rectangular area containing a model image (with fallback options)
--- and an optional title, supporting various alignment, padding, and color options.
---
--- @param x number: X coordinate of the box.
--- @param y number: Y coordinate of the box.
--- @param w number: Width of the box.
--- @param h number: Height of the box.
--- @param color number: (Unused) Color parameter for future use or compatibility.
--- @param title string: Optional title text to display.
--- @param imagewidth number: Optional width of the image inside the box.
--- @param imageheight number: Optional height of the image inside the box.
--- @param imagealign string: Alignment of the image ("left", "center", "right"). Default is "center".
--- @param bgcolor number|string: Background color (resolved via utils.resolveColor).
--- @param titlealign string: Alignment of the title ("left", "center", "right"). Default is "center".
--- @param titlecolor number|string: Color of the title text.
--- @param titlepos string: Position of the title ("top" or "bottom"). Default is "top".
--- @param imagepadding number: General padding around the image (overridden by specific paddings if set).
--- @param imagepaddingleft number: Padding to the left of the image.
--- @param imagepaddingright number: Padding to the right of the image.
--- @param imagepaddingtop number: Padding above the image.
--- @param imagepaddingbottom number: Padding below the image.
-function utils.modelImageBox(
-    x, y, w, h,
-    color, title, imagewidth, imageheight, imagealign, bgcolor,
-    titlealign, titlecolor, titlepos,
-    imagepadding, imagepaddingleft, imagepaddingright, imagepaddingtop, imagepaddingbottom
-)
-    local isDARKMODE = lcd.darkMode()
-    local resolvedBg = utils.resolveColor(bgcolor)
-    lcd.color(resolvedBg or (isDARKMODE and lcd.RGB(40, 40, 40) or lcd.RGB(240, 240, 240)))
-    lcd.drawFilledRectangle(x, y, w, h)
-
-    imagepaddingleft = imagepaddingleft or imagepadding or 0
-    imagepaddingright = imagepaddingright or imagepadding or 0
-    imagepaddingtop = imagepaddingtop or imagepadding or 0
-    imagepaddingbottom = imagepaddingbottom or imagepadding or 0
-
-    local region_x = x + imagepaddingleft
-    local region_y = y + imagepaddingtop
-    local region_w = w - imagepaddingleft - imagepaddingright
-    local region_h = h - imagepaddingtop - imagepaddingbottom
-
-    local craftName = rfsuite and rfsuite.session and rfsuite.session.craftName
-    local modelID = rfsuite and rfsuite.session and rfsuite.session.modelID
-    local image1 = craftName and ("/bitmaps/models/" .. craftName .. ".png") or nil
-    local image2 = modelID and ("/bitmaps/models/" .. modelID .. ".png") or nil
-    local default_image = model.bitmap() or "widgets/dashboard/default_image.png"
-
-    local cacheKey = image1 or image2 or default_image
-    local bitmapPtr = imageCache[cacheKey]
-    if not bitmapPtr and rfsuite and rfsuite.utils and rfsuite.utils.loadImage then
-        bitmapPtr = rfsuite.utils.loadImage(image1, image2, default_image)
-        imageCache[cacheKey] = bitmapPtr
-    end
-    if bitmapPtr then
-        local img_w = imagewidth or region_w
-        local img_h = imageheight or region_h
-        local align = imagealign or "center"
-        local img_x, img_y = region_x, region_y
-
-        if align == "center" then
-            img_x = region_x + (region_w - img_w) / 2
-        elseif align == "right" then
-            img_x = region_x + region_w - img_w
-        else
-            img_x = region_x
-        end
-        if align == "center" then
-            img_y = region_y + (region_h - img_h) / 2
-        elseif align == "bottom" then
-            img_y = region_y + region_h - img_h
-        else
-            img_y = region_y
-        end
-
-        if title and title ~= "" then
-            lcd.font(FONT_S)
-            local tsize_w, tsize_h = lcd.getTextSize(title)
-            local sx
-            if titlealign == "left" then
-                sx = x
-            elseif titlealign == "right" then
-                sx = x + w - tsize_w
-            else
-                sx = x + (w - tsize_w) / 2
-            end
-            local useColor = utils.resolveColor(titlecolor) or (lcd.darkMode() and lcd.RGB(255,255,255,1) or lcd.RGB(90,90,90))
-            lcd.color(useColor)
-            if titlepos == "bottom" then
-                lcd.drawText(sx, y + h - tsize_h, title)
-            else
-                lcd.drawText(sx, y, title)
-                img_y = img_y + tsize_h + 2
-            end
-        end
-
-        lcd.drawBitmap(img_x, img_y, bitmapPtr, img_w, img_h)
-    else
-        lcd.font(FONT_S)
-        lcd.color(lcd.RGB(200,50,50))
-        lcd.drawText(x + 10, y + 10, "No Model Image")
-    end
 end
 
 --- Retrieves a parameter from the given `box` table by `key`.

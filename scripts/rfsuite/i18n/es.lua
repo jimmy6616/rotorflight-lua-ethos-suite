@@ -419,7 +419,14 @@ return {
         ["dashboard_theme_preflight"] = "Preflight Theme",
         ["dashboard_theme_inflight"] = "Inflight Theme",
         ["dashboard_theme_postflight"] = "Postflight Theme",
-        ["txt_development"] = "Development"
+        ["localizations"] = "Localization",
+        ["txt_development"] = "Development",
+        ["temperature_unit"] = "Temperature Unit",
+        ["altitude_unit"] = "Altitude Unit",
+        ["celcius"] = "Celsius",
+        ["fahrenheit"] = "Fahrenheit",
+        ["meters"] = "Meters",
+        ["feet"] = "Feet"
       },
       ["validate_sensors"] = {
         ["help_p1"] = "Esta herramienta intenta listar todos los sensores necesarios que faltan.",
@@ -1153,6 +1160,7 @@ return {
     ["dashboard"] = {
       ["theme_load_error"] = "Your theme did not load correctly. Falling back to default theme.",
       ["validate_sensors"] = "MISSING REQUIRED SENSORS",
+      ["unsupported_resolution"] = "TO SMALL",
       ["loading"] = "ROTORFLIGHT",
       ["waiting_for_connection"] = "CONNECTING",
       ["check_bg_task"] = "BG TASK",

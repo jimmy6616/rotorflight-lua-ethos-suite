@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  *
  * Note: Some icons have been sourced from https://www.flaticon.com/
+
 ================================================================================
                          CONFIGURATION INSTRUCTIONS
 ================================================================================
@@ -20,11 +21,7 @@
 For a complete list of all available widget parameters and usage options,
 SEE THE TOP OF EACH WIDGET OBJECT FILE.
 
-(Scroll to the top of files like battery.lua, etc, for the full reference.)
-
-================================================================================
-                   END OF CONFIGURATION INSTRUCTIONS
-================================================================================
+(Scroll to the top of files like battery.lua, telemetry.lua etc, for the full reference.)
 
 --------------------------------------------------------------------------------
 -- ACTUAL DASHBOARD CONFIG BELOW (edit/add your widgets here!)
@@ -71,7 +68,8 @@ local boxes = {
 
     -- HEATRING
     {
-        type = "heatring",
+        type = "gauge",
+        subtype = "ring",
         col = 2, row = 1,
         title = "RPM",
         min = 0,
@@ -96,23 +94,17 @@ local boxes = {
 
     -- ARCGUAGE
     {
-        type = "arcgauge",
+        type = "gauge",
+        subtype = "arc",
         col = 1, row = 2,
-        source = "temp_esc", 
-        title = "ESC Temp", 
+        source = "temp_esc",
+        title = "ESC TEMP",
         titlepos = "bottom",
-        gaugemin = 0, 
-        gaugemax = 140, 
-        unit = "°", 
-        textcolor = "white", 
-        font = "FONT_STD", 
+        min = 0, 
+        max = 140,
         transform = "floor", 
-        textoffsetx = 12,
-        fillbgcolor = "lightgrey", 
-        arcOffsetY = 4, 
-        arcThickness = 1, 
-        startAngle = 225, 
-        sweep = 270,
+        fillbgcolor = "lightgrey",
+        valuepaddingright = 18,
         thresholds = {
             { value = 70,  fillcolor = "green"  },
             { value = 90,  fillcolor = "orange" },
@@ -122,7 +114,8 @@ local boxes = {
 
     -- ARCDIAL
     {
-        type = "arcdial",
+        type = "dial",
+        subtype = "rainbow",
         col = 2, row = 2,
         title = "Fuel",
         titlepos = "bottom",
@@ -161,7 +154,6 @@ local boxes = {
         valuealign = "center",
         titlealign = "center",
         titlepos = "bottom",
-        titlecolor = "white",
         thresholds = {
             { value = 20,  fillcolor = "red",    textcolor = "white" },
             { value = 50,  fillcolor = "orange", textcolor = "black" },
@@ -170,12 +162,62 @@ local boxes = {
     },
 
     -- VOLTAGE GAUGE
-    {col = 2, row = 3, type = "voltagegauge", source = "voltage", title = "Voltage"},
+    {
+        col = 2, row = 3,
+        type = "gauge",
+        source = "voltage",
+        gaugemin = function()
+            local cfg = rfsuite.session.batteryConfig
+            local cells = (cfg and cfg.batteryCellCount) or 3
+            local minV = (cfg and cfg.vbatmincellvoltage) or 3.0
+            return math.max(0, cells * minV)
+        end,
+        gaugemax = function()
+            local cfg = rfsuite.session.batteryConfig
+            local cells = (cfg and cfg.batteryCellCount) or 3
+            local maxV = (cfg and cfg.vbatmaxcellvoltage) or 4.2
+            return math.max(0, cells * maxV)
+        end,
+        gaugeorientation = "horizontal",
+        fillbgcolor = "grey",
+        gaugepadding = 4,
+        gaugebelowtitle = true,
+        title = "VOLTAGE",
+        unit = "V",
+        textcolor = "white",
+        valuealign = "center",
+        titlealign = "center",
+        titlepos = "bottom",
+        fillcolor = "green",
+        thresholds = {
+            {
+                value = function()
+                    local cfg = rfsuite.session.batteryConfig
+                    local cells = (cfg and cfg.batteryCellCount) or 3
+                    local minV = (cfg and cfg.vbatmincellvoltage) or 3.0
+                    return cells * minV * 1.2
+                end,
+                fillbgcolor = "red",
+                textcolor = "white"
+            },
+            {
+                value = function()
+                    local cfg = rfsuite.session.batteryConfig
+                    local cells = (cfg and cfg.batteryCellCount) or 3
+                    local warnV = (cfg and cfg.vbatwarningcellvoltage) or 3.5
+                    return cells * warnV * 1.2
+                end,
+                fillbgcolor = "orange",
+                textcolor = "white"
+            }
+        }
+    },
 
     -- BATTERY
     {
         col = 3, row = 1,
-        type = "battery",
+        type = "gauge",
+        subtype = "battery",
         source = "voltage",
         gaugemin = function()
             local cfg = rfsuite.session.batteryConfig
@@ -227,7 +269,8 @@ local boxes = {
 
     -- ARC MAX GAUGE
     {
-        type = "arcmaxgauge",
+        type = "gauge",
+        subtype = "arcmax",
         col = 3, row = 2, rowspan = 2,
                 source = "temp_esc", 
         title = "ESC Temp", 
