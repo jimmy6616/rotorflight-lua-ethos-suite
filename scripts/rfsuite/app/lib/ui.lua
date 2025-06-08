@@ -314,6 +314,7 @@ function ui.openMainMenu()
     rfsuite.app.formFields = {}
     rfsuite.app.formLines = {}
     rfsuite.session.lastLabel = nil
+    rfsuite.app.isOfflinePage = false
 
     -- clear old icons
     for i in pairs(rfsuite.app.gfx_buttons) do
@@ -327,7 +328,7 @@ function ui.openMainMenu()
         return
     end    
 
-    local MainMenu = assert(rfsuite.compiler.loadfile("app/modules/init.lua"))()
+    local MainMenu = rfsuite.app.MainMenu
 
     -- Clear all navigation variables
     rfsuite.app.lastIdx = nil
@@ -386,6 +387,8 @@ function ui.openMainMenu()
                                       (page.mspversion and (rfsuite.session.apiVersion or 1) < page.mspversion) or
                                       (page.developer and not rfsuite.preferences.developer.devtools)
 
+                    local offline = page.offline
+
                     if not hideEntry then
                         if lc == 0 then
                             y = form.height() + (rfsuite.preferences.general.iconsize == 2 and rfsuite.app.radio.buttonPadding or rfsuite.app.radio.buttonPaddingSmall)
@@ -406,12 +409,17 @@ function ui.openMainMenu()
                             press = function()
                                 rfsuite.preferences.menulastselected["mainmenu"] = pidx
                                 rfsuite.app.ui.progressDisplay()
+                                rfsuite.app.isOfflinePage = offline
                                 rfsuite.app.ui.openPage(pidx, page.title, page.folder .. "/" .. page.script)                          
                             end
                         })
 
                         if rfsuite.preferences.menulastselected["mainmenu"] == pidx then
                             rfsuite.app.formFields[pidx]:focus()
+                        end
+
+                        if not offline then
+                            rfsuite.app.formFields[pidx]:enable(false)
                         end
 
                         lc = (lc + 1) % numPerRow
