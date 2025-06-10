@@ -1,4 +1,5 @@
 -- display vars
+local utils = assert(rfsuite.compiler.loadfile("SCRIPTS:/" .. rfsuite.config.baseDir .. "/app/modules/logs/lib/utils.lua"))()
 local res = system.getVersion()
 local LCD_W = res.lcdWidth
 local LCD_H = res.lcdHeight
@@ -13,17 +14,13 @@ graphPos['key_width'] = LCD_W - graphPos['width']
 graphPos['height'] = LCD_H - graphPos['menu_offset'] - graphPos['menu_offset'] - 40 + graphPos['height_offset']
 graphPos['slider_y'] = LCD_H - (graphPos['menu_offset'] + 30) + graphPos['height_offset']
 
-local triggerOverRide = false
-local triggerOverRideAll = false
 
 local zoomLevel = 1
 local zoomCount = 5
 local enableWakeup = false
-local wakeupScheduler = os.clock()
 local activeLogFile
 local logPadding = 5
-local armTime
-local currentDisplayMode
+
 
 local logFileHandle = nil
 local logDataRaw = {}
@@ -44,24 +41,39 @@ local sliderPositionOld = 1
 local processedLogData = false
 local currentDataIndex = 1
 
--- Range of samples to display for each zoom level
-local zoomLevelToRange = {
-    [1] = {min = 500, max = 600}, -- Fully zoomed out
-    [2] = {min = 400, max = 500},
-    [3] = {min = 200, max = 300},
-    [4] = {min = 100, max = 200},
-    [5] = {min = 10, max = 100}      -- Fully zoomed in
+-- Cache for paint data
+local paintCache = {
+    points = {},
+    step_size = 0,
+    position = 1,
+    graphCount = 0,
+    laneHeight = 0,
+    currentLane = 0,
+    decimationFactor = 1,
+    needsUpdate = false
 }
 
 -- number of samples to skip for each zoom level
 local zoomLevelToDecimation = {
-    [1] = 20,   -- Fully zoomed out: every 20th sample
-    [2] = 15,
-    [3] = 10,
-    [4] = 5,
-    [5] = 1,    -- Fully zoomed in: every sample
+    [1] = 5,   -- Fully zoomed out: 
+    [2] = 4,
+    [3] = 2,
+    [4] = 1,
+    [5] = 1,    -- Fully zoomed in:
 }
 
+local zoomLevelToTime = {
+  [1] = 600, -- 10 minutes
+  [2] = 300, -- 5 minutes
+  [3] = 120, -- 2 minutes
+  [4] = 60,  -- 1 minute
+  [5] = 30,  -- 30 seconds
+}
+
+local SAMPLE_RATE = 1
+local function secondsToSamples(sec)
+  return math.floor(sec * SAMPLE_RATE)
+end
 
 function readNextChunk()
     if logDataRawReadComplete then
@@ -92,6 +104,7 @@ function readNextChunk()
         rfsuite.tasks.callback.clear(readNextChunk)
     end
 end
+
 function format_time(seconds)
     -- Calculate minutes and remaining seconds
     local minutes = math.floor(seconds / 60)
@@ -101,35 +114,26 @@ function format_time(seconds)
     return string.format("%02d:%02d", minutes, seconds_remainder)
 end
 
-local function calculate_time_coverage(dates)
-
-    if #dates == 0 then
-        return "00:00" -- If the table is empty, return 00:00
+local function calculateZoomSteps(logLineCount)
+    -- Calculate total log duration in seconds (assuming 1 sample/second)
+    local logDurationSec = logLineCount / SAMPLE_RATE
+    
+    -- Determine which zoom levels are feasible
+    local maxZoomLevel = 1
+    for level = 5, 1, -1 do
+        local desiredTime = zoomLevelToTime[level]
+        -- Require at least 1.5x the desired time window to enable a zoom level
+        -- (so you have some room to pan around)
+        if logDurationSec >= desiredTime * 1.5 then
+            maxZoomLevel = level
+            break
+        end
     end
-
-    local timestamps = {}
-
-    -- Convert each date string to a timestamp
-    for _, date in ipairs(dates) do
-        local year, month, day, hour, min, sec = date:match("(%d+)-(%d+)-(%d+)_(%d+):(%d+):(%d+)")
-        local timestamp = os.time({year = tonumber(year), month = tonumber(month), day = tonumber(day), hour = tonumber(hour), min = tonumber(min), sec = tonumber(sec)})
-        table.insert(timestamps, timestamp)
-    end
-
-    -- Find the minimum and maximum timestamps
-    local min_time = math.min(table.unpack(timestamps))
-    local max_time = math.max(table.unpack(timestamps))
-
-    -- Calculate the time difference in seconds
-    local time_diff = max_time - min_time
-
-    -- Convert seconds to minutes and seconds
-    local minutes = math.floor(time_diff / 60)
-    local seconds = time_diff % 60
-
-    -- Format as mm:ss
-    return string.format("%02d:%02d", minutes, seconds)
+    
+    return maxZoomLevel
 end
+
+
 
 function calculateSeconds(totalSeconds, sliderValue)
     -- Ensure sliderValue is within the range 1-100
@@ -138,7 +142,6 @@ function calculateSeconds(totalSeconds, sliderValue)
     local secondsPassed = math.floor(((sliderValue-1) / 100) * totalSeconds)
     return secondsPassed
 end
-
 
 -- Enhanced paginate_table() to support decimation
 function paginate_table(data, step_size, position, decimationFactor)
@@ -154,9 +157,6 @@ function paginate_table(data, step_size, position, decimationFactor)
 
      return page
 end
-
-
-
 
 function padTable(tbl, padCount)
     -- Get the first and last values of the table
@@ -178,68 +178,11 @@ function padTable(tbl, padCount)
     return paddedTable
 end
 
-function unpadTable(paddedTable, padCount)
-    -- Ensure the paddedTable has enough elements to unpad
-    if #paddedTable < 2 * padCount then
-        error("Padded table is too small to unpad with the given padCount")
-    end
-
-    -- Extract the original table elements
-    local unpaddedTable = {}
-    for i = padCount + 1, #paddedTable - padCount do
-        table.insert(unpaddedTable, paddedTable[i])
-    end
-
-    return unpaddedTable
-end
-
-
-function rfsuite.compiler.loadfileToMemory(filename)
-    local file, err = io.open(filename, "rb")
-    if not file then return nil, "Error opening file: " .. err end
-
-    local content = {}
-    local chunk
-    repeat
-        chunk = file:read(1024) -- Read 1KB at a time
-        if chunk then table.insert(content, chunk) end
-    until not chunk
-
-    file:close()
-    return table.concat(content) -- Join all chunks into a single string
-end
 
 function map(x, in_min, in_max, out_min, out_max)
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 end
 
-function calculate_optimal_records_per_page(total_records, range_min, range_max)
-    -- Define the target range for records per page
-    local min_records_per_page = range_min or 50
-    local max_records_per_page = range_max or 100
-
-    -- Initialize variables to track the best option
-    local best_records_per_page
-    local best_page_count_difference = math.huge -- Start with a large number
-
-    -- Loop through the possible number of records per page within the range
-    for records_per_page = min_records_per_page, max_records_per_page do
-        -- Calculate the total pages needed for this number of records per page
-        local total_pages = math.ceil(total_records / records_per_page)
-
-        -- Calculate the difference in the number of pages compared to the mid-point
-        local page_count_difference = math.abs(total_pages - (total_records / records_per_page))
-
-        -- If this option is better (i.e., fewer steps or more balanced), update the best option
-        if page_count_difference < best_page_count_difference then
-            best_records_per_page = records_per_page
-            best_page_count_difference = page_count_difference
-            optimal_steps = total_pages -- Store the number of steps (pages)
-        end
-    end
-
-    return best_records_per_page, optimal_steps
-end
 
 -- Efficient function to get a specific column from CSV
 function getColumn(csvData, colIndex)
@@ -290,30 +233,6 @@ local function cleanColumn(data)
         end
     end
     return out
-end
-
-local function trimHeader(data)
-    local out = {}
-    for i, v in ipairs(data) do
-        if i ~= 1 then -- skip the header
-            out[i - 1] = v
-        end
-    end
-    return out
-end
-
-local function getLogDir(dirname)
-    -- make sure folder exists
-    os.mkdir("LOGS:")
-    os.mkdir("LOGS:/rfsuite")
-    os.mkdir("LOGS:/rfsuite/telemetry")
-    if  not dirname  then
-        os.mkdir("LOGS:/rfsuite/telemetry/" .. rfsuite.session.mcu_id)
-        return "LOGS:/rfsuite/telemetry/" .. rfsuite.session.mcu_id .. "/"
-    end
-
-    return "LOGS:/rfsuite/telemetry/" .. dirname .. "/" 
-
 end
 
 function getValueAtPercentage(array, percentage)
@@ -382,7 +301,6 @@ local function drawGraph(points, color, pen, x_start, y_start, width, height, mi
 end
 
 local function drawKey(name, keyunit, keyminmax, keyfloor, color, minimum, maximum, laneY, laneHeight)
-
     local w = LCD_W - graphPos['width'] - 10
     local boxpadding = 3
 
@@ -421,7 +339,6 @@ local function drawKey(name, keyunit, keyminmax, keyfloor, color, minimum, maxim
         max_trunc = string.format("%.1fK", maximum / 10000)
     end
     
-
     local max_str
     local min_str
     if keyminmax == 1 then
@@ -446,12 +363,9 @@ local function drawKey(name, keyunit, keyminmax, keyfloor, color, minimum, maxim
         local avgY = mmY + th -2
         lcd.drawText(x + 5, avgY, avg_str, LEFT)
     end    
-
 end
 
-
 local function drawCurrentIndex(points, position, totalPoints, keyindex, keyunit, keyfloor, name, color, laneY, laneHeight, laneNumber, totalLanes)
-
     if position < 1 then position = 1 end
 
     local sliderPadding = rfsuite.app.radio.logSliderPaddingLeft
@@ -500,13 +414,27 @@ local function drawCurrentIndex(points, position, totalPoints, keyindex, keyunit
 
     if laneNumber == 1 then
         local current_s = calculateSeconds(totalPoints, position)
-        local time_str = format_time(math.floor(current_s))
+        local time_str  = format_time(math.floor(current_s))
+
+        -- 2) look up our zoom‐window span, capped to real log duration
+        local logDurSec     = math.floor(logLineCount / SAMPLE_RATE)
+        local desiredWinSec = zoomLevelToTime[zoomLevel] or zoomLevelToTime[1]
+        local windowSec     = math.min(desiredWinSec, logDurSec)
+        local win_label
+        if windowSec < 60 then
+            win_label = string.format("%ds", windowSec)
+        else
+            win_label = string.format("%d:%02d", math.floor(windowSec/60), windowSec % 60)
+        end
+
+        -- 3) combine into "HH:MM [+SSs]" or "HH:MM [+M:SS]"
+        local full_label = string.format("%s [+%s]", time_str, win_label)
 
         lcd.font(rfsuite.app.radio.logKeyFont)
         local ty = graphPos['height'] + graphPos['menu_offset'] - 10
 
         lcd.color(COLOR_WHITE)
-        lcd.drawText(idxPos, ty, time_str, textAlign)
+        lcd.drawText(idxPos, ty, full_label, textAlign)
 
         if lcd.darkMode() then
             lcd.color(COLOR_WHITE)
@@ -545,24 +473,8 @@ local function drawCurrentIndex(points, position, totalPoints, keyindex, keyunit
                 lcd.color(COLOR_GREY)        
         end
         lcd.drawFilledRectangle(z_x, z_y + lineOffsetY, z_w, z_lh)
-
-        
-
     end
 end
-
-local function resolveModelName(foldername)
-    if foldername == nil then return "Unknown" end
-
-    local iniName = "LOGS:rfsuite/telemetry/" .. foldername .. "/logs.ini"
-    local iniData = rfsuite.ini.load_ini_file(iniName) or {}
-
-    if iniData["model"] and iniData["model"].name then
-        return iniData["model"].name
-    end
-    return "Unknown"
-end
-
 
 function findMaxNumber(numbers)
     local max = numbers[1] -- Assume the first number is the largest initially
@@ -570,13 +482,6 @@ function findMaxNumber(numbers)
         if numbers[i] > max then max = numbers[i] end
     end
     return max
-end
-
-function addMaxMinToTable(tbl, value_start, value_end)
-    -- Insert the value at the beginning
-    table.insert(tbl, 1, value_start)
-    -- Insert the value at the end
-    table.insert(tbl, value_end)
 end
 
 function findMinNumber(numbers)
@@ -597,7 +502,7 @@ function findAverage(numbers)
 end
 
 local function openPage(pidx, title, script, logfile, displaymode,dirname)
-    currentDisplayMode = displaymode
+  
 
     rfsuite.tasks.msp.protocol.mspIntervalOveride = nil
 
@@ -610,20 +515,18 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
     rfsuite.app.lastTitle = title
     rfsuite.app.lastScript = script
 
-    local name = resolveModelName(rfsuite.session.mcu_id or rfsuite.session.activeLogDir)
+    local name = utils.resolveModelName(rfsuite.session.mcu_id or rfsuite.session.activeLogDir)
     rfsuite.app.ui.fieldHeader("Logs / ".. name .. " / " .. extractShortTimestamp(logfile))
     activeLogFile = logfile
 
     local filePath
 
     if rfsuite.session.activeLogDir then
-        filePath = getLogDir(rfsuite.session.activeLogDir) .. "/" .. logfile
+        filePath = utils.getLogDir(rfsuite.session.activeLogDir) .. "/" .. logfile
     else
-        filePath = getLogDir() .. "/" .. logfile
+        filePath = utils.getLogDir() .. "/" .. logfile
     end
     logFileHandle, err = io.open(filePath, "rb")
-
-
 
     -- slider
     local posField = {x = graphPos['x_start'], y = graphPos['slider_y'], w = graphPos['width'] - 10, h = 40}
@@ -632,7 +535,6 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
     end, function(newValue)
         sliderPosition = newValue
     end)
-
 
     local zoomButtonWidth = (graphPos['key_width'] / 2) - 20
     --- zoom -
@@ -644,6 +546,7 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
         press = function()
             if zoomLevel > 1 then
                 zoomLevel = zoomLevel - 1
+                paintCache.needsUpdate = true
                 lcd.invalidate()
                 rfsuite.app.formFields[2]:enable(true)
                 rfsuite.app.formFields[3]:enable(true)
@@ -666,6 +569,7 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
         press = function()
             if zoomLevel < zoomCount then
                 zoomLevel = zoomLevel + 1
+                paintCache.needsUpdate = true
                 lcd.invalidate()
                 rfsuite.app.formFields[2]:enable(true)
                 rfsuite.app.formFields[3]:enable(true)
@@ -679,7 +583,6 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
     
     rfsuite.app.formFields[1]:step(1)
 
-
     logDataRaw = {}
     logFileReadOffset = 0
     logDataRawReadComplete = false
@@ -690,7 +593,6 @@ local function openPage(pidx, title, script, logfile, displaymode,dirname)
     enableWakeup = true
     return
 end
-
 
 local function event(event, category, value, x, y)
     if  value == 35 then
@@ -704,12 +606,66 @@ local slowcount = 0
 local carriedOver = nil
 local subStepSize = nil
 
+local function updatePaintCache()
+    if not logData or not processedLogData then return end
+    
+    -- 1) pick window size by time, but cap it to actual log length
+    local logDurSec     = math.floor(logLineCount / SAMPLE_RATE)
+    local desiredWinSec = zoomLevelToTime[zoomLevel] or zoomLevelToTime[1]
+    local winSec        = math.min(desiredWinSec, logDurSec)
+    paintCache.step_size = secondsToSamples(winSec)
+
+    -- 2) slide that window via slider
+    local maxPosition = math.max(1, logLineCount - paintCache.step_size + 1)
+    paintCache.position = math.floor(map(sliderPosition, 1, 100, 1, maxPosition))
+    if paintCache.position < 1 then paintCache.position = 1 end
+
+    paintCache.graphCount = 0
+    for _, v in ipairs(logData) do
+        if v.graph then paintCache.graphCount = paintCache.graphCount + 1 end
+    end
+
+    paintCache.laneHeight = graphPos['height'] / paintCache.graphCount
+    paintCache.currentLane = 0
+    paintCache.decimationFactor = zoomLevelToDecimation[zoomLevel] or 1
+
+    if zoomCount == 1 then
+        paintCache.decimationFactor = 1
+    end
+
+    -- Clear previous points
+    paintCache.points = {}
+
+    -- Calculate points for each graph lane
+    for _, v in ipairs(logData) do
+        if v.graph then
+            paintCache.currentLane = paintCache.currentLane + 1
+            paintCache.points[paintCache.currentLane] = {
+                points = paginate_table(v.data, paintCache.step_size, paintCache.position, paintCache.decimationFactor),
+                color = v.color,
+                pen = v.pen,
+                minimum = v.minimum,
+                maximum = v.maximum,
+                keyname = v.keyname,
+                keyunit = v.keyunit,
+                keyminmax = v.keyminmax,
+                keyfloor = v.keyfloor,
+                name = v.name,
+                keyindex = v.keyindex
+            }
+        end
+    end
+
+    paintCache.needsUpdate = false
+end
+
 local function wakeup()
     if not enableWakeup then
         return -- Exit early if wakeup is disabled
     end
 
-    if sliderPosition ~= sliderPositionOld then
+    if sliderPosition ~= sliderPositionOld or paintCache.needsUpdate then
+        updatePaintCache()
         lcd.invalidate()
         sliderPositionOld = sliderPosition
     end
@@ -774,14 +730,26 @@ local function wakeup()
         progressLoader:message("Processing data " .. currentDataIndex .. " of " .. #logColumns)
 
         if currentDataIndex >= #logColumns then
-
-
             logLineCount = #logData[currentDataIndex]['data']
+
+            -- recompute how many zoom‐levels really make sense for this file
+            zoomCount = calculateZoomSteps(logLineCount)
+            if zoomLevel > zoomCount then zoomLevel = zoomCount end
+
+            -- update zoom‐button states
+            local btnMinus = rfsuite.app.formFields[2]
+            local btnPlus  = rfsuite.app.formFields[3]
+            if zoomCount <= 1 then
+                btnMinus:enable(false); btnPlus:enable(false)
+            else
+                btnMinus:enable(zoomLevel > 1)
+                btnPlus :enable(zoomLevel < zoomCount)
+            end
 
             progressLoader:close()
             processedLogData = true
+            paintCache.needsUpdate = true
             lcd.invalidate()
-            
         end
 
         currentDataIndex = currentDataIndex + 1
@@ -789,24 +757,7 @@ local function wakeup()
     end
 end
 
-local function calculateZoomSteps(logLineCount)
-    if logLineCount < 50 then
-        return 1
-    elseif logLineCount < 100 then
-        return 2
-    elseif logLineCount < 300 then
-        return 3
-    elseif logLineCount < 600 then
-        return 4
-    else
-        return 5
-    end
-end
-
-
-
 local function paint()
-
     local menu_offset = graphPos['menu_offset']
     local x_start = graphPos['x_start']
     local y_start = graphPos['y_start']
@@ -814,66 +765,21 @@ local function paint()
     local height = graphPos['height']
 
     if enableWakeup and processedLogData then
-
-        if logData then
-            local zoomRange = zoomLevelToRange[zoomLevel]
-            zoomCount = calculateZoomSteps(logLineCount)
-            local optimal_records_per_page, _ = calculate_optimal_records_per_page(logLineCount, zoomRange.min, zoomRange.max)
-
-            local step_size = optimal_records_per_page
-            local maxPosition = math.max(1, logLineCount - step_size)
-            local position = math.floor(map(sliderPosition, 1, 100, 1, maxPosition))
-            if step_size > logLineCount then
-                step_size = logLineCount
-            end
-            if position < 1 then position = 1 end
-
-            local graphCount = 0
-            for _, v in ipairs(logData) do
-                if v.graph then graphCount = graphCount + 1 end
-            end
-
-            local laneHeight = height / graphCount
-            local currentLane = 0
-
-            if zoomCount == 1 then
-                rfsuite.app.formFields[2]:enable(false)
-                rfsuite.app.formFields[3]:enable(false)
-            end
-
-            for _, v in ipairs(logData) do
-                if v.graph then
-                    currentLane = currentLane + 1
-                    local laneY = y_start + (currentLane - 1) * laneHeight
-
-                    -- Apply zoom-level specific decimation
-                    local decimationFactor = zoomLevelToDecimation[zoomLevel] or 1
-
-                    if zoomCount == 1 then
-                        decimationFactor = 1
-                    end
-
-                    -- Fetch the reduced data set to plot
-                    local points = paginate_table(v.data, step_size, position, decimationFactor)
-
-                    drawGraph(points, v.color, v.pen, x_start, laneY, width, laneHeight, v.minimum, v.maximum)
-
-                    drawKey(v.keyname, v.keyunit, v.keyminmax, v.keyfloor, v.color, v.minimum, v.maximum, laneY, laneHeight)
-
-                    drawCurrentIndex(points, sliderPosition, logLineCount + logPadding, v.keyindex, v.keyunit, v.keyfloor, v.name, v.color, laneY, laneHeight, currentLane, graphCount)
-                end
+        if paintCache.points and #paintCache.points > 0 then
+            for laneNumber, laneData in ipairs(paintCache.points) do
+                local laneY = y_start + (laneNumber - 1) * paintCache.laneHeight
+                
+                drawGraph(laneData.points, laneData.color, laneData.pen, x_start, laneY, width, paintCache.laneHeight, laneData.minimum, laneData.maximum)
+                drawKey(laneData.keyname, laneData.keyunit, laneData.keyminmax, laneData.keyfloor, laneData.color, laneData.minimum, laneData.maximum, laneY, paintCache.laneHeight)
+                drawCurrentIndex(laneData.points, sliderPosition, logLineCount + logPadding, laneData.keyindex, laneData.keyunit, laneData.keyfloor, laneData.name, laneData.color, laneY, paintCache.laneHeight, laneNumber, paintCache.graphCount)
             end
         end
     end
 end
 
 local function onNavMenu(self)
-
     rfsuite.app.ui.progressDisplay()
-
     rfsuite.app.ui.openPage(rfsuite.app.lastIdx, rfsuite.app.lastTitle, "logs/logs_logs.lua")
-
-
 end
 
 return {
