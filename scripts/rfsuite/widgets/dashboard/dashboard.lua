@@ -63,9 +63,12 @@ local wakeupScheduler = 0
 -- Spread scheduling of object wakeups to avoid doing them all at once:
 local objectWakeupIndex = 1             -- current object index for wakeup
 local objectWakeupsPerCycle = nil       -- number of objects to wake per cycle (calculated later)
-local objectSchedulerPercentage = 0.2   -- fraction of total objects to wake each cycle (20%)
 local objectsThreadedWakeupCount = 0
 local lastLoadedBoxCount = 0
+
+-- Track background loading of remaining flight mode modules
+local statePreloadQueue = {"inflight", "postflight"}
+local statePreloadIndex = 1
 
 local unsupportedResolution = false  -- flag to track unsupported resolutions
 
@@ -130,6 +133,46 @@ end
 
 function dashboard.overlaymessage(x, y, w, h, txt)
     dashboard.loaders.pulseOverlayMessage(dashboard, x, y, w, h, txt)
+end
+
+--- Calculates the scheduler percentage based on the number of objects.
+-- This function determines what fraction of objects should be processed per cycle,
+-- depending on the total count. Fewer objects result in a higher percentage processed
+-- per cycle, while more objects reduce the percentage to avoid overloading.
+-- @param count number The total number of objects to schedule.
+-- @return number The percentage (as a decimal) of objects to process per cycle.
+local function computeObjectSchedulerPercentage(count)
+    if count <= 10 then return 0.6      -- fewer objects → more per cycle
+    elseif count <= 15 then return 0.5
+    elseif count <= 25 then return 0.4
+    elseif count <= 40 then return 0.3
+    else return 0.2 end                -- many objects → fewer per cycle
+end
+
+--- Loads a single dashboard object type (box) if not already loaded.
+-- Used during wakeup preload to load one box at a time.
+-- @param box A box configuration table with a `type` field.
+function dashboard.loadObjectType(box)
+    local typ = box and box.type
+    if not typ then return end
+
+    if not dashboard._moduleCache[typ] then
+        local baseDir = rfsuite.config.baseDir or "default"
+        local objPath = "SCRIPTS:/" .. baseDir .. "/widgets/dashboard/objects/" .. typ .. ".lua"
+        local ok, obj = pcall(function()
+            return assert(rfsuite.compiler.loadfile(objPath))()
+        end)
+        if ok and type(obj) == "table" then
+            dashboard._moduleCache[typ] = obj
+        else
+            rfsuite.utils.log("Failed to load object: " .. tostring(typ), "info")
+            dashboard._moduleCache[typ] = false
+        end
+    end
+
+    if dashboard._moduleCache[typ] then
+        dashboard.objectsByType[typ] = dashboard._moduleCache[typ]
+    end
 end
 
 --- Loads and caches dashboard object modules based on the provided box configurations.
@@ -274,7 +317,7 @@ local function getBoxPosition(box, w, h, boxWidth, boxHeight, PADDING, WIDGET_W,
     elseif box.col and box.row then
         local col = box.col or 1
         local row = box.row or 1
-        local x = math.floor((col - 1) * (boxWidth + PADDING))
+        local x = math.floor((col - 1) * (boxWidth + PADDING)) + (box.xOffset or 0)
         local y = math.floor(PADDING + (row - 1) * (boxHeight + PADDING))
         return x, y
     else
@@ -303,7 +346,29 @@ function dashboard.renderLayout(widget, config)
     end
 
     -- overall size
-    local W, H = lcd.getWindowSize()
+    local W_raw, H_raw = lcd.getWindowSize()
+    local cols    = layout.cols    or 1
+    local rows    = layout.rows    or 1
+    local pad     = layout.padding or 0
+
+    -- Find the largest W/H values that divide cleanly into grid cells
+    local function adjustDimension(dim, cells, padCount)
+        local target = dim
+        while ((target - (padCount * pad)) % cells) ~= 0 do
+            target = target - 1
+        end
+        return target
+    end
+
+    local W = adjustDimension(W_raw, cols, cols - 1)
+    local H = adjustDimension(H_raw, rows, rows + 1)  -- +1 to account for extra vertical padding in Ethos
+    local xOffset = math.floor((W_raw - W) / 2)
+
+    -- Now we proceed with perfect divisions:
+    local contentW = W - ((cols - 1) * pad)
+    local contentH = H - ((rows + 1) * pad)
+    local boxW     = contentW / cols
+    local boxH     = contentH / rows
 
     ----------------------------------------------------------------
     -- PHASE 1: ALWAYS MEASURE & BUILD dashboard.boxRects
@@ -320,14 +385,19 @@ function dashboard.renderLayout(widget, config)
 
     for i, box in ipairs(boxes) do
         local w, h = getBoxSize(box, boxW, boxH, pad, W, H)
+        box.xOffset = xOffset
         local x, y = getBoxPosition(box, w, h, boxW, boxH, pad, W, H)
         dashboard.boxRects[#dashboard.boxRects+1] = { x=x, y=y, w=w, h=h, box=box }
     end
 
     -- recompute how many objects to wake per cycle if the count changed
     if not objectWakeupsPerCycle or lastBoxRectsCount ~= #dashboard.boxRects then
-        objectWakeupsPerCycle = math.max(1, math.ceil(#dashboard.boxRects * objectSchedulerPercentage))
-        lastBoxRectsCount     = #dashboard.boxRects
+        local count = #dashboard.boxRects
+        local percentage = computeObjectSchedulerPercentage(count)
+        objectWakeupsPerCycle = math.max(1, math.ceil(count * percentage))
+        lastBoxRectsCount     = count
+        rfsuite.utils.log("Object scheduler set to " .. tostring(objectWakeupsPerCycle) ..
+                        " out of " .. tostring(count) .. " boxes", "info")
     end
 
     scheduledBoxIndices = {}
@@ -369,6 +439,25 @@ function dashboard.renderLayout(widget, config)
         end
     end
 
+
+     -- draw dotted grid over the layout if enabled
+    if layout.showgrid then
+        lcd.color(layout.showgrid)
+        lcd.pen(1)
+
+        for i = 1, cols - 1 do
+            local x = math.floor(i * (boxW + pad)) + xOffset - math.floor(pad / 2)
+            lcd.drawLine(x, 0, x, H_raw)
+        end
+
+        for i = 1, rows - 1 do
+            local y = math.floor(i * (boxH + pad)) + pad
+            lcd.drawLine(0, y, W_raw, y)
+        end
+
+        lcd.pen(SOLID) -- reset to default after drawing
+    end   
+
     -- overlay spinner: reset or countdown our cycle counter
     if dashboard.overlayMessage then
       -- new overlay → restart full 5s worth of cycles
@@ -381,6 +470,14 @@ function dashboard.renderLayout(widget, config)
       lcd.invalidate()
     end
 
+end
+
+-- Utility to resolve a theme for a given flight mode
+local function getThemeForState(state)
+    local prefs = rfsuite.session.modelPreferences and rfsuite.session.modelPreferences.dashboard
+    local fallback = rfsuite.preferences.dashboard
+    local val = prefs and prefs["theme_" .. state]
+    return (val and val ~= "nil" and val) or fallback["theme_" .. state] or dashboard.DEFAULT_THEME
 end
 
 
@@ -521,54 +618,44 @@ local function load_state_script(theme_folder, state)
     end
 end
 
---- Reloads dashboard themes and updates related state modules and intervals.
--- This function performs the following steps:
--- 1. Resets the dashboard image cache.
--- 2. Loads state modules (`preflight`, `inflight`, `postflight`) using the selected or default themes.
--- 3. Attempts to load interval settings (`wakeup_interval`, `wakeup_interval_bg`, `paint_interval`)
---    from the `scheduler` table or function in any loaded state module.
--- 4. Collects all box objects from all loaded state modules and loads them into the dashboard.
--- 5. Resets the wakeup scheduler and clears the dashboard's box rectangles.
-function dashboard.reload_themes()
-    -- Clear any cached images
+-- Utility to get the correct theme for a given state
+local function getThemeForState(state)
+    local modelPrefs = rfsuite.session.modelPreferences and rfsuite.session.modelPreferences.dashboard
+    local userPrefs = rfsuite.preferences.dashboard
+    local val = nil
+    if modelPrefs then
+        val = modelPrefs["theme_" .. state]
+        if val == "nil" then val = nil end
+    end
+    return val or userPrefs["theme_" .. state] or dashboard.DEFAULT_THEME
+end
+
+-- Reload just the active state script
+local function reload_state_only(state)
+    dashboard.utils.resetImageCache()
+    loadedStateModules[state] = load_state_script(getThemeForState(state), state)
+    lastLoadedBoxCount = 0
+    lastBoxRectsCount = 0
+    objectWakeupIndex = 1
+    objectsThreadedWakeupCount = 0
+    objectWakeupsPerCycle = nil
+    dashboard.boxRects = {}
+    lcd.invalidate()
+end
+
+
+function dashboard.reload_active_theme_only(force)
     dashboard.utils.resetImageCache()
 
-    -- Load each theme state (preflight, inflight, postflight)
-    loadedStateModules = {
-        preflight  = load_state_script(((rfsuite.session.modelPreferences and rfsuite.session.modelPreferences.dashboard.theme_preflight ~= "nil") and rfsuite.session.modelPreferences.dashboard.theme_preflight) or rfsuite.preferences.dashboard.theme_preflight  or dashboard.DEFAULT_THEME, "preflight"),
-        inflight   = load_state_script(((rfsuite.session.modelPreferences and rfsuite.session.modelPreferences.dashboard.theme_inflight ~= "nil") and rfsuite.session.modelPreferences.dashboard.theme_inflight) or rfsuite.preferences.dashboard.theme_inflight   or dashboard.DEFAULT_THEME, "inflight"),
-        postflight = load_state_script(((rfsuite.session.modelPreferences and rfsuite.session.modelPreferences.dashboard.theme_postflight ~= "nil") and rfsuite.session.modelPreferences.dashboard.theme_postflight) or rfsuite.preferences.dashboard.theme_postflight or dashboard.DEFAULT_THEME, "postflight"),
-    }
+    local state = dashboard.flightmode or "preflight"
+    local theme = getThemeForState(state)
 
-    -- Try to pick up any custom scheduler intervals defined by the theme
-    local function tryLoadIntervals()
-        for _, mod in pairs(loadedStateModules) do
-            if mod and mod.scheduler then
-                local initTable = (type(mod.scheduler) == "function") and mod.scheduler() or mod.scheduler
-                if type(initTable) == "table" then
-                    loadedThemeIntervals.wakeup_interval    = initTable.wakeup_interval    or 0.25
-                    loadedThemeIntervals.wakeup_interval_bg = initTable.wakeup_interval_bg
-                    loadedThemeIntervals.paint_interval     = initTable.paint_interval     or 0.5
-                    return
-                end
-            end
-        end
+    if force or not loadedStateModules[state] then
+        rfsuite.utils.log("Reloading active theme: " .. theme, "info")
+        loadedStateModules[state] = load_state_script(theme, state)
+    else
+        rfsuite.utils.log("Skipped reloading active theme: already loaded", "info")
     end
-    tryLoadIntervals()
-
-    -- Gather every box from all loaded states so we can preload their object modules
-    local allBoxes = {}
-    for _, mod in pairs(loadedStateModules) do
-        if mod and mod.boxes then
-            local boxes = type(mod.boxes) == "function" and mod.boxes() or mod.boxes
-            for _, box in ipairs(boxes or {}) do
-                table.insert(allBoxes, box)
-            end
-        end
-    end
-
-    -- Preload all object types used by these boxes
-    dashboard.loadAllObjects(allBoxes)
 
     -- Reset scheduler & layout state so the hourglass & wakeup cycle restart cleanly
     wakeupScheduler             = 0
@@ -579,9 +666,42 @@ function dashboard.reload_themes()
     lastBoxRectsCount           = 0
     objectWakeupsPerCycle       = nil
 
-    -- Force an immediate repaint so the spinner appears right away
+    -- Force spinner draw
     lcd.invalidate()
 end
+
+
+
+function dashboard.reload_themes(force)
+    -- Step 1: Load just the active theme and reset core state
+    dashboard.reload_active_theme_only(force)
+
+    -- Step 2: Reset state preload index (wake-up loop will handle it)
+    statePreloadIndex = 1  -- start loading immediately
+
+    -- Step 3: Load scheduler intervals from active module only
+    local active = dashboard.flightmode or "preflight"
+    local mod = loadedStateModules[active]
+    if mod and mod.scheduler then
+        local initTable = (type(mod.scheduler) == "function") and mod.scheduler() or mod.scheduler
+        if type(initTable) == "table" then
+            loadedThemeIntervals.wakeup_interval    = initTable.wakeup_interval or 0.25
+            loadedThemeIntervals.wakeup_interval_bg = initTable.wakeup_interval_bg
+            loadedThemeIntervals.paint_interval     = initTable.paint_interval or 0.5
+        end
+    end
+
+    -- Step 4: Load object types for active module only
+    local boxes = {}
+    if mod and mod.boxes then
+        local rawBoxes = type(mod.boxes) == "function" and mod.boxes() or mod.boxes
+        for _, box in ipairs(rawBoxes or {}) do
+            table.insert(boxes, box)
+        end
+    end
+    dashboard.loadAllObjects(boxes)
+end
+
 
 
 --- Calls a state-specific function for the dashboard widget, handling fallbacks and errors.
@@ -656,6 +776,8 @@ function dashboard.paint(widget)
     else
         callStateFunc("paint", widget)
     end
+
+
 end
 
 --- Configures the given dashboard widget by invoking the "configure" state function.
@@ -806,10 +928,32 @@ function dashboard.wakeup(widget)
         unsupportedResolution = false    
     end
 
-    -- load themes on first wakeup
+    -- load only preflight theme on first wakeup for speed
     if firstWakeup then
         firstWakeup = false
-        dashboard.reload_themes()
+        local theme = getThemeForState("preflight")
+        rfsuite.utils.log("Initial loading of preflight theme: " .. theme, "info")
+        loadedStateModules.preflight = load_state_script(theme, "preflight")
+    end
+
+    -- Background load inflight/postflight modules one at a time
+    if statePreloadIndex <= #statePreloadQueue then
+        local state = statePreloadQueue[statePreloadIndex]
+        if not loadedStateModules[state] then
+            local theme = getThemeForState(state)
+            rfsuite.utils.log("Preloading theme: " .. theme .. " for " .. state, "info")
+            loadedStateModules[state] = load_state_script(theme, state)
+
+            -- Add boxes from newly loaded module
+            local mod = loadedStateModules[state]
+            if mod and mod.boxes then
+                local boxes = type(mod.boxes) == "function" and mod.boxes() or mod.boxes
+                for _, box in ipairs(boxes or {}) do
+                    dashboard.loadObjectType(box)
+                end
+            end
+        end
+        statePreloadIndex = statePreloadIndex + 1
     end
 
     -- catch scenario where mcu_id is found and we have to reload to model theme
@@ -872,8 +1016,9 @@ function dashboard.wakeup(widget)
     local currentFlightMode = rfsuite.session.flightMode or "preflight"
     if lastFlightMode ~= currentFlightMode then
         dashboard.flightmode = currentFlightMode
-        dashboard.reload_themes()
+        reload_state_only(currentFlightMode)
         lastFlightMode = currentFlightMode
+        lcd.invalidate(widget)  -- <<< force re-render immediately
     end
 
     -- Periodically check for overlay message changes
@@ -901,27 +1046,23 @@ function dashboard.wakeup(widget)
         for _, idx in ipairs(scheduledBoxIndices) do
             local rect = dashboard.boxRects[idx]
             local obj  = dashboard.objectsByType[rect.box.type]
-            -- We already know `obj.scheduler` is set, but double-check `wakeup`:
             if obj and obj.wakeup then
                 obj.wakeup(rect.box, rfsuite.tasks.telemetry)
             end
         end
 
-        -- 2) Then wake a spread of the *remaining* objects (no `scheduler` field)
         for i = 1, objectWakeupsPerCycle do
-            local idx  = objectWakeupIndex
+            local idx = objectWakeupIndex
             local rect = dashboard.boxRects[idx]
             if rect then
                 local obj = dashboard.objectsByType[rect.box.type]
-                -- Only wake if it does NOT have a custom scheduler
                 if obj and obj.wakeup and not obj.scheduler then
                     obj.wakeup(rect.box, rfsuite.tasks.telemetry)
                 end
             end
-            objectWakeupIndex = (objectWakeupIndex % #dashboard.boxRects) + 1
+            objectWakeupIndex = (#dashboard.boxRects > 0) and ((objectWakeupIndex % #dashboard.boxRects) + 1) or 1
         end
 
-        -- Increment `objectsThreadedWakeupCount` when we've looped through all boxes
         if objectWakeupIndex == 1 then
             objectsThreadedWakeupCount = objectsThreadedWakeupCount + 1
         end
@@ -1032,6 +1173,7 @@ function dashboard.resetFlightModeAsk()
             rfsuite.session.flightMode = "preflight"
             rfsuite.tasks.events.flightmode.reset()
             dashboard.reload_themes()
+            reload_state_only("preflight")
             return true
         end
     }, {

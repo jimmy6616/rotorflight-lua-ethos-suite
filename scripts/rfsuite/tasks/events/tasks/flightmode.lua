@@ -22,62 +22,50 @@ local flightmode = {}
 local lastFlightMode = nil
 local hasBeenInFlight = false
 
---------------------------------------------------------------------------------
--- Checks whether the model is currently in flight.
--- Returns true if telemetry is active, the model is armed, and one of:
---   • Governor source equals 4
---   • RPM > 500
---   • Throttle percent > 30
---------------------------------------------------------------------------------
+local throttleStartTime = nil -- Time when throttle first exceeded 0
+local throttleDelaySeconds = 10 -- Delay before trusting throttle > 0
+
+
+--- Determines if the aircraft is considered "in flight" based on telemetry and session data.
+-- 
+-- The function checks the following conditions in order of priority:
+-- 1. If telemetry is inactive or the session is not armed, returns false.
+-- 2. If a "governor" sensor is available and its value is between 4 and 8 (inclusive), returns true.
+-- 3. If the throttle value is greater than 0 for a specified delay period (`throttleDelaySeconds`), returns true.
+-- 4. Otherwise, returns false.
+--
+-- @return boolean True if the aircraft is considered in flight, false otherwise.
 function flightmode.inFlight()
     local telemetry = rfsuite.tasks.telemetry
 
-    -- Telemetry must be active and the system armed
-    if not telemetry.active() then
-        return false
-    end
-    if not rfsuite.session.isArmed then
+    if not telemetry.active() or not rfsuite.session.isArmed then
+        throttleStartTime = nil
         return false
     end
 
-    -- 1) Try governor sensor first
+    -- Priority 1: Governor
     local governor = telemetry.getSensorSource("governor")
     if governor then
         local g = governor:value()
-        -- Only these governor modes count as “in flight”
-        if g == 4 or  g == 5 or g == 6 or g == 7 or g == 8 then
-            return true
-        else
-            return false
+        if g ~= nil then
+            return g == 4 or g == 5 or g == 6 or g == 7 or g == 8
         end
     end
 
-    -- 2) If no governor, try RPM
-    local rpm = telemetry.getSensorSource("rpm")
-    if rpm then
-        if rpm:value() > 500 then
-            return true
-        else
-            return false
+    -- Priority 2: Throttle fallback with delay
+    local now = os.clock()
+    local throttle = rfsuite.session.rx and rfsuite.session.rx.values and rfsuite.session.rx.values.throttle
+
+    if throttle and throttle > 0 then
+        if not throttleStartTime then
+            throttleStartTime = now -- start timer
+        elseif (now - throttleStartTime) >= throttleDelaySeconds then
+            return true -- throttle has been above 0 long enough
         end
+    else
+        throttleStartTime = nil -- reset timer if throttle drops
     end
 
-    -- 3) If neither governor nor RPM, try throttle_percent
-    local throttle = telemetry.getSensorSource("throttle_percent")
-    if throttle then
-        if throttle:value() > 30 then
-            return true
-        else
-            return false
-        end
-    end
-
-    -- 4) if none of the above sensors exist, return armed status
-    if rfsuite.session.isArmed then
-        return true
-    end    
-
-    -- 5) If none of these sensors exist, not in flight
     return false
 end
 
@@ -89,6 +77,7 @@ end
 function flightmode.reset()
     lastFlightMode = nil
     hasBeenInFlight = false
+    throttleStartTime = nil
 end
 
 --------------------------------------------------------------------------------
