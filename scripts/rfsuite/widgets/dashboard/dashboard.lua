@@ -72,6 +72,9 @@ local statePreloadIndex = 1
 
 local unsupportedResolution = false  -- flag to track unsupported resolutions
 
+-- Track last known telemetry values for targeted invalidation
+dashboard._lastValues = {}
+
 -- precompute indices of boxes whose object has its own `scheduler` field,
 -- so we can wake them every cycle without scanning all `boxRects`.
 local scheduledBoxIndices = {}
@@ -110,6 +113,9 @@ local lastWakeupBg = 0  -- for background wakeup
 -- Increase to ~0.36 for a 20% larger spinner (0.3 * 1.2)
 dashboard.loaderScale    = 0.38
 dashboard.overlayScale      = 0.38
+
+-- dark mode state
+local darkModeState = lcd.darkMode()
 
 -- initialize cache once
 dashboard._moduleCache = dashboard._moduleCache or {}
@@ -345,6 +351,9 @@ function dashboard.renderLayout(widget, config)
         lastLoadedBoxCount = #boxes
     end
 
+    -- Reset value cache for paint invalidation
+    dashboard._lastValues = {}
+
     -- overall size
     local W_raw, H_raw = lcd.getWindowSize()
     local cols    = layout.cols    or 1
@@ -388,6 +397,9 @@ function dashboard.renderLayout(widget, config)
         box.xOffset = xOffset
         local x, y = getBoxPosition(box, w, h, boxW, boxH, pad, W, H)
         dashboard.boxRects[#dashboard.boxRects+1] = { x=x, y=y, w=w, h=h, box=box }
+        
+        -- Set up last value cache for this box index
+        dashboard._lastValues[#dashboard.boxRects] = nil       
     end
 
     -- recompute how many objects to wake per cycle if the count changed
@@ -928,6 +940,12 @@ function dashboard.wakeup(widget)
         unsupportedResolution = false    
     end
 
+    -- Reload if dark mode changed
+    if lcd.darkMode() ~= darkModeState then
+        darkModeState = lcd.darkMode()
+        rfsuite.widgets.dashboard.reload_themes(true)
+    end
+
     -- load only preflight theme on first wakeup for speed
     if firstWakeup then
         firstWakeup = false
@@ -1031,11 +1049,8 @@ function dashboard.wakeup(widget)
     local state = dashboard.flightmode or "preflight"
     local module = loadedStateModules[state]
 
-    if type(module) == "table" and module.layout then
-        lcd.invalidate(widget)
-        if type(module.wakeup) == "function" then
+    if type(module.wakeup) == "function" then
             module.wakeup(widget)
-        end
     else
         callStateFunc("wakeup", widget)
     end
@@ -1059,6 +1074,13 @@ function dashboard.wakeup(widget)
                 if obj and obj.wakeup and not obj.scheduler then
                     obj.wakeup(rect.box, rfsuite.tasks.telemetry)
                 end
+
+                -- Invalidate only if value changed
+                local val = rect.box.value
+                if val ~= dashboard._lastValues[idx] then
+                    dashboard._lastValues[idx] = val
+                    lcd.invalidate(rect.x, rect.y, rect.w, rect.h)
+                end            
             end
             objectWakeupIndex = (#dashboard.boxRects > 0) and ((objectWakeupIndex % #dashboard.boxRects) + 1) or 1
         end
@@ -1066,6 +1088,12 @@ function dashboard.wakeup(widget)
         if objectWakeupIndex == 1 then
             objectsThreadedWakeupCount = objectsThreadedWakeupCount + 1
         end
+
+        -- Force full repaint if overlay (e.g. loading spinner) is visible or spinner is active
+        if dashboard.overlayMessage ~= nil or dashboard._hg_cycles > 0 then
+            lcd.invalidate(widget)
+        end
+
     end
 
     if not lcd.hasFocus(widget) and dashboard.selectedBoxIndex ~= nil then
@@ -1172,7 +1200,6 @@ function dashboard.resetFlightModeAsk()
             -- we push this to the background task to do its job
             rfsuite.session.flightMode = "preflight"
             rfsuite.tasks.events.flightmode.reset()
-            dashboard.reload_themes()
             reload_state_only("preflight")
             return true
         end
