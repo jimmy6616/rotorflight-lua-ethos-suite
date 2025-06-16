@@ -2,6 +2,7 @@
     Flight Time Widget
     Configurable Parameters (box table fields):
     -------------------------------------------
+    wakeupinterval      : number                    -- Optional wakeup interval in seconds (set in wrapper)
     title               : string                    -- (Optional) Title text
     titlepos            : string                    -- (Optional) Title position ("top" or "bottom")
     titlealign          : string                    -- (Optional) Title alignment ("center", "left", "right")
@@ -34,7 +35,8 @@ local resolveThemeColor = utils.resolveThemeColor
 local lastDisplayValue = nil
 
 function render.dirty(box)
-    -- Always dirty on first run
+    if not rfsuite.session.telemetryState then return false end
+
     if box._lastDisplayValue == nil then
         box._lastDisplayValue = box._currentDisplayValue
         return true

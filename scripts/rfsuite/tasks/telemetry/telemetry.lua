@@ -18,13 +18,47 @@
 ]] --
 local arg = {...}
 local config = arg[1]
-
+local i18n = rfsuite.i18n.get
 local telemetry = {}
-local sensors = {}
 local protocol, telemetrySOURCE, crsfSOURCE
 
+
+-- sensor cache: weak values so GC can drop cold sources
+local sensors   = {}
+
+-- debug counters
+local cache_hits, cache_misses = 0, 0
+
+-- LRU for hot sources
+local HOT_SIZE  = 25
+local hot_list, hot_index = {}, {}
+
+local function mark_hot(key)
+  local idx = hot_index[key]
+  if idx then
+    table.remove(hot_list, idx)
+  elseif #hot_list >= HOT_SIZE then
+    local old = table.remove(hot_list, 1)
+    hot_index[old] = nil
+    -- evict the old sensor so cache size ≤ HOT_SIZE
+    sensors[old] = nil    
+  end
+  table.insert(hot_list, key)
+  hot_index[key] = #hot_list
+end
+
+function telemetry._debugStats()
+  local hot_count = #hot_list
+  return {
+    hits        = cache_hits,
+    misses      = cache_misses,
+    hot_size    = hot_count,
+    hot_list    = hot_list,
+  }
+end
+
 -- Rate‐limiting for wakeup()
-local sensorRateLimit = os.clock()
+local sensorRateLimit = rfsuite.clock
 local SENSOR_RATE = 0.25        -- 1 second between onchange scans
 
 -- Store the last validated sensors and timestamp
@@ -82,7 +116,7 @@ local sensorTable = {
 
     -- RSSI Sensors
     rssi = {
-        name = rfsuite.i18n.get("telemetry.sensors.rssi"),
+        name = i18n("telemetry.sensors.rssi"),
         mandatory = true,
         stats = true,
         switch_alerts = true,
@@ -111,7 +145,7 @@ local sensorTable = {
 
     -- Arm Flags
     armflags = {
-        name = rfsuite.i18n.get("telemetry.sensors.arming_flags"),
+        name = i18n("telemetry.sensors.arming_flags"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 90,
@@ -141,7 +175,7 @@ local sensorTable = {
 
     -- Voltage Sensors
     voltage = {
-        name = rfsuite.i18n.get("telemetry.sensors.voltage"),
+        name = i18n("telemetry.sensors.voltage"),
         mandatory = true,
         stats = true,
         set_telemetry_sensors = 3,
@@ -172,7 +206,7 @@ local sensorTable = {
 
     -- RPM Sensors
     rpm = {
-        name = rfsuite.i18n.get("telemetry.sensors.headspeed"),
+        name = i18n("telemetry.sensors.headspeed"),
         mandatory = true,
         stats = true,
         set_telemetry_sensors = 60,
@@ -197,7 +231,7 @@ local sensorTable = {
 
     -- Current Sensors
     current = {
-        name = rfsuite.i18n.get("telemetry.sensors.current"),
+        name = i18n("telemetry.sensors.current"),
         mandatory = false,
         stats = true,
         set_telemetry_sensors = 18,
@@ -226,7 +260,7 @@ local sensorTable = {
 
     -- ESC Temperature Sensors
     temp_esc = {
-        name = rfsuite.i18n.get("telemetry.sensors.esc_temp"),
+        name = i18n("telemetry.sensors.esc_temp"),
         mandatory = false,
         stats = true,
         set_telemetry_sensors = 23,
@@ -268,7 +302,7 @@ local sensorTable = {
 
     -- MCU Temperature Sensors
     temp_mcu = {
-        name = rfsuite.i18n.get("telemetry.sensors.mcu_temp"),
+        name = i18n("telemetry.sensors.mcu_temp"),
         mandatory = false,
         stats = true,
         set_telemetry_sensors = 52,
@@ -309,7 +343,7 @@ local sensorTable = {
 
     -- Fuel and Capacity Sensors
     fuel = {
-        name = rfsuite.i18n.get("telemetry.sensors.fuel"),
+        name = i18n("telemetry.sensors.fuel"),
         mandatory = false,
         stats = true,
         set_telemetry_sensors = 6,
@@ -333,7 +367,7 @@ local sensorTable = {
     },
 
     consumption = {
-        name = rfsuite.i18n.get("telemetry.sensors.consumption"),
+        name = i18n("telemetry.sensors.consumption"),
         mandatory = true,
         stats = true,
         set_telemetry_sensors = 5,
@@ -358,7 +392,7 @@ local sensorTable = {
 
     -- Flight Mode (Governor)
     governor = {
-        name = rfsuite.i18n.get("telemetry.sensors.governor"),
+        name = i18n("telemetry.sensors.governor"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 93,
@@ -381,7 +415,7 @@ local sensorTable = {
 
     -- Adjustment Sensors
     adj_f = {
-        name = rfsuite.i18n.get("telemetry.sensors.adj_func"),
+        name = i18n("telemetry.sensors.adj_func"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 99,
@@ -402,7 +436,7 @@ local sensorTable = {
     },
 
     adj_v = {
-        name = rfsuite.i18n.get("telemetry.sensors.adj_val"),
+        name = i18n("telemetry.sensors.adj_val"),
         mandatory = true,
         stats = false,
         -- grouped with adj_f, so no set_telemetry_sensors here
@@ -424,7 +458,7 @@ local sensorTable = {
 
     -- PID and Rate Profiles
     pid_profile = {
-        name = rfsuite.i18n.get("telemetry.sensors.pid_profile"),
+        name = i18n("telemetry.sensors.pid_profile"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 95,
@@ -446,7 +480,7 @@ local sensorTable = {
     },
 
     rate_profile = {
-        name = rfsuite.i18n.get("telemetry.sensors.rate_profile"),
+        name = i18n("telemetry.sensors.rate_profile"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 96,
@@ -469,7 +503,7 @@ local sensorTable = {
 
     -- Throttle Sensors
     throttle_percent = {
-        name = rfsuite.i18n.get("telemetry.sensors.throttle_pct"),
+        name = i18n("telemetry.sensors.throttle_pct"),
         mandatory = true,
         stats = true,
         set_telemetry_sensors = 15,
@@ -495,7 +529,7 @@ local sensorTable = {
 
     -- Arm Disable Flags
     armdisableflags = {
-        name = rfsuite.i18n.get("telemetry.sensors.armdisableflags"),
+        name = i18n("telemetry.sensors.armdisableflags"),
         mandatory = true,
         stats = false,
         set_telemetry_sensors = 91,
@@ -517,7 +551,7 @@ local sensorTable = {
 
     -- Altitude
     altitude = {
-        name = rfsuite.i18n.get("telemetry.sensors.altitude"),
+        name = i18n("telemetry.sensors.altitude"),
         mandatory = false,
         stats = true,
         set_telemetry_sensors = nil,
@@ -557,7 +591,7 @@ local sensorTable = {
 
     -- Bec Voltage
     bec_voltage = {
-        name = rfsuite.i18n.get("telemetry.sensors.bec_voltage"),
+        name = i18n("telemetry.sensors.bec_voltage"),
         mandatory = true,
         stats = true,
         set_telemetry_sensors = 43,
@@ -584,7 +618,7 @@ local sensorTable = {
 
     -- Cell Count
     cell_count = {
-        name = rfsuite.i18n.get("telemetry.sensors.cell_count"),
+        name = i18n("telemetry.sensors.cell_count"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -606,7 +640,7 @@ local sensorTable = {
 
     -- Accellerometer X
     accx = {
-        name = rfsuite.i18n.get("telemetry.sensors.accx"),
+        name = i18n("telemetry.sensors.accx"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -628,7 +662,7 @@ local sensorTable = {
 
     -- Accellerometer y
     accy = {
-        name = rfsuite.i18n.get("telemetry.sensors.accy"),
+        name = i18n("telemetry.sensors.accy"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -650,7 +684,7 @@ local sensorTable = {
 
     -- Accellerometer z
     accz = {
-        name = rfsuite.i18n.get("telemetry.sensors.accz"),
+        name = i18n("telemetry.sensors.accz"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -672,7 +706,7 @@ local sensorTable = {
 
     -- Attitude Yaw
     attyaw = {
-        name = rfsuite.i18n.get("telemetry.sensors.attyaw"),
+        name = i18n("telemetry.sensors.attyaw"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -694,7 +728,7 @@ local sensorTable = {
 
     -- Attitude Yaw
     attroll = {
-        name = rfsuite.i18n.get("telemetry.sensors.attroll"),
+        name = i18n("telemetry.sensors.attroll"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -717,7 +751,7 @@ local sensorTable = {
 
     -- Attitude Pitch
     attpitch = {
-        name = rfsuite.i18n.get("telemetry.sensors.attpitch"),
+        name = i18n("telemetry.sensors.attpitch"),
         mandatory = false,
         stats = false,
         set_telemetry_sensors = nil,
@@ -804,8 +838,12 @@ end
 function telemetry.getSensorSource(name)
     if not sensorTable[name] then return nil end
 
-    -- Return cached if available:
-    if sensors[name] then return sensors[name] end
+    -- Return cached if available, bump it as hot:
+    if sensors[name] then
+        cache_hits = cache_hits + 1           -- debug: we hit the cache :contentReference[oaicite:0]{index=0}
+        mark_hot(name)
+        return sensors[name]
+    end
 
     local function checkCondition(sensorEntry)
         if not (rfsuite.session and rfsuite.session.apiVersion) then
@@ -827,8 +865,10 @@ function telemetry.getSensorSource(name)
                 local sensorQ = { appId = sensor.uid, category = CATEGORY_TELEMETRY_SENSOR }
                 local source = system.getSource(sensorQ)
                 if source then
+                    cache_misses = cache_misses + 1       -- debug: loaded from system.getSource :contentReference[oaicite:1]{index=1}
                     sensors[name] = source
-                    return sensors[name]
+                    mark_hot(name)
+                    return source
                 end
             end
         end
@@ -845,8 +885,10 @@ function telemetry.getSensorSource(name)
                     sensor.msplt = nil
                     local source = system.getSource(sensor)
                     if source then
+                        cache_misses = cache_misses + 1       -- debug: loaded from system.getSource :contentReference[oaicite:1]{index=1}
                         sensors[name] = source
-                        return sensors[name]
+                        mark_hot(name)
+                        return source
                     end
                 end
             end
@@ -855,8 +897,10 @@ function telemetry.getSensorSource(name)
             for _, sensor in ipairs(sensorTable[name].sensors.crsfLegacy or {}) do
                 local source = system.getSource(sensor)
                 if source then
+                    cache_misses = cache_misses + 1       -- debug: loaded from system.getSource :contentReference[oaicite:1]{index=1}
                     sensors[name] = source
-                    return sensors[name]
+                    mark_hot(name)
+                    return source
                 end
             end
         end
@@ -869,8 +913,10 @@ function telemetry.getSensorSource(name)
                 sensor.msplt = nil
                 local source = system.getSource(sensor)
                 if source then
+                    cache_misses = cache_misses + 1       -- debug: loaded from system.getSource :contentReference[oaicite:1]{index=1}
                     sensors[name] = source
-                    return sensors[name]
+                    mark_hot(name)
+                    return source
                 end
             end
         end
@@ -921,7 +967,7 @@ end
         - The function considers the mandatory flag for invalid sensors.
 ]]
 function telemetry.validateSensors(returnValid)
-    local now = os.clock()
+    local now = rfsuite.clock
     if (now - lastValidationTime) < VALIDATION_RATE_LIMIT then
         return lastValidationResult
     end
@@ -991,6 +1037,7 @@ end
 function telemetry.reset()
     telemetrySOURCE, crsfSOURCE, protocol = nil, nil, nil
     sensors = {}
+    hot_list, hot_index = {}, {}
     telemetry.sensorStats = {}
     -- Also reset onchange tracking so we rebuild next time:
     filteredOnchangeSensors = nil
@@ -1006,7 +1053,7 @@ end
     - Reset telemetry if needed
 ]]
 function telemetry.wakeup()
-    local now = os.clock()
+    local now = rfsuite.clock
 
     -- Prioritize MSP traffic
     if rfsuite.app.triggers.mspBusy then
@@ -1048,15 +1095,6 @@ function telemetry.wakeup()
         end
     end
 
-    -- Periodic cache flush every CACHE_FLUSH_INTERVAL seconds
-    if ((now - lastCacheFlushTime) >= CACHE_FLUSH_INTERVAL) or rfsuite.session.resetTelemetry == true then
-        if rfsuite.session.resetTelemetry == true then
-            rfsuite.utils.log("Telemetry cache reset", "info")
-            rfsuite.session.resetTelemetry = false
-        end
-        lastCacheFlushTime = now
-        sensors = {}
-    end
 
     -- Reset if telemetry is inactive or telemetry type changed
     if not rfsuite.session.telemetryState or rfsuite.session.telemetryTypeChanged then

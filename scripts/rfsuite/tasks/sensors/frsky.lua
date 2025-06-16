@@ -24,7 +24,7 @@ local config = arg[1]
 
 local frsky = {}
 local cacheExpireTime = 10 -- Time in seconds to expire the caches
-local lastCacheFlushTime = os.clock() -- Store the initial time
+local lastCacheFlushTime = rfsuite.clock -- Store the initial time
 
 frsky.name = "frsky"
 
@@ -120,6 +120,8 @@ createSensorList[0x52F8] = {name = "Debug 7", unit = UNIT_RAW}
 0x5FE2
 ]]--
 
+local log = rfsuite.utils.log
+
 local dropSensorList = {}
 
 -- rename
@@ -196,7 +198,7 @@ local function createSensor(physId, primId, appId, frameValue)
 
             if frsky.createSensorCache[appId] == nil then
 
-                rfsuite.utils.log("Creating sensor: " .. v.name, "info")
+                log("Creating sensor: " .. v.name, "info")
 
                 frsky.createSensorCache[appId] = model.createSensor()
                 frsky.createSensorCache[appId]:name(v.name)
@@ -254,7 +256,7 @@ local function dropSensor(physId, primId, appId, frameValue)
             frsky.dropSensorCache[appId] = system.getSource({category = CATEGORY_TELEMETRY_SENSOR, appId = appId})
 
             if frsky.dropSensorCache[appId] ~= nil then
-                rfsuite.utils.log("Drop sensor: " .. v.name, "info")
+                log("Drop sensor: " .. v.name, "info")
                 frsky.dropSensorCache[appId]:drop()
             end
 
@@ -291,7 +293,7 @@ local function renameSensor(physId, primId, appId, frameValue)
 
             if frsky.renameSensorCache[appId] ~= nil then
                 if frsky.renameSensorCache[appId]:name() == v.onlyifname then
-                    rfsuite.utils.log("Rename sensor: " .. v.name, "info")
+                    log("Rename sensor: " .. v.name, "info")
                     frsky.renameSensorCache[appId]:name(v.name)
                 end
             end
@@ -348,9 +350,9 @@ function frsky.wakeup()
     end
 
     -- Check if it's time to expire the caches
-    if os.clock() - lastCacheFlushTime >= cacheExpireTime then
+    if rfsuite.clock - lastCacheFlushTime >= cacheExpireTime then
         clearCaches()
-        lastCacheFlushTime = os.clock() -- Reset the timer
+        lastCacheFlushTime = rfsuite.clock -- Reset the timer
     end
 
     -- Flush sensor list if we kill the sensors

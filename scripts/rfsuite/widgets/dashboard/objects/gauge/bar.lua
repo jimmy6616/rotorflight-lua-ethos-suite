@@ -2,6 +2,7 @@
     Bar Gauge Widget
     Configurable Parameters (box table fields):
     -------------------------------------------
+    wakeupinterval      : number   -- Optional wakeup interval in seconds (set in wrapper)
     -- Title/label
     title                   : string    -- (Optional) Title text
     titlepos                : string    -- (Optional) "top" or "bottom"
@@ -127,7 +128,7 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
             lcd.color(accentcolor)
             local capW = math.min(math.max(4, math.floor(w * 0.40)), w)
             for i = 0, frameThickness - 1 do
-                lcd.drawFilledRectangle(x + (w - capW) / 2 - i, y - i, capW + 2 * i, capH)
+                lcd.drawFilledRectangle(x + (w - capW) / 2 - i, y + i, capW + 2 * i, capH - i)
             end
         end
 
@@ -193,7 +194,7 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
             local capW = capOffset
             local capH = math.min(math.max(4, math.floor(h * 0.33)), h)
             for i = 0, frameThickness - 1 do
-                lcd.drawFilledRectangle(x + bodyW + i, y + (h - capH) / 2 - i, capW, capH + 2 * i)
+                lcd.drawFilledRectangle(x + bodyW + i, y + (h - capH) / 2 + i, capW, capH - 2 * i)
             end
         end
     end

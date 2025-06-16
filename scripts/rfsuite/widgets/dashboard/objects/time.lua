@@ -11,6 +11,21 @@ function wrapper.paint(x, y, w, h, box)
 end
 
 function wrapper.wakeup(box, telemetry)
+
+    -- Ensure telemetry is available
+    if not telemetry then
+        return
+    end
+
+    -- Wakeup interval control using optional parameter (wakeupinterval)
+    local now = rfsuite.clock
+    box._wakeupInterval = box._wakeupInterval or (box.wakeupinterval or 0.1)
+    box._lastWakeup = box._lastWakeup or 0
+
+    if now - box._lastWakeup < box._wakeupInterval then
+        return -- Throttle wakeup
+    end      
+
     local subtype = box.subtype or "flight"
 
     if not renders[subtype] then

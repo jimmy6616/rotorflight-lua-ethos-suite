@@ -2,7 +2,7 @@ local labels = {}
 local tables = {}
 
 local activateWakeup = false
-
+local i18n = rfsuite.i18n.get
 
 tables[0] = "app/modules/rates/ratetables/none.lua"
 tables[1] = "app/modules/rates/ratetables/betaflight.lua"
@@ -26,7 +26,7 @@ local function postLoad(self)
 
     local v = apidata.values[apidata.api[1]].rates_type
     
-    rfsuite.utils.log("Active Rate Table: " .. rfsuite.session.activeRateTable,"info")
+    rfsuite.utils.log("Active Rate Table: " .. rfsuite.session.activeRateTable,"debug")
 
     if v ~= rfsuite.session.activeRateTable then
         rfsuite.utils.log("Switching Rate Table: " .. v,"info")
@@ -82,7 +82,7 @@ local function openPage(idx, title, script)
     end
 
     -- we dont use the global due to scrollers
-    local screenWidth, screenHeight = rfsuite.app.getWindowSize()
+    local screenWidth, screenHeight = rfsuite.app.utils.getWindowSize()
 
     local padding = 10
     local paddingTop = rfsuite.app.radio.linePaddingTop
@@ -211,7 +211,7 @@ end
 
 return {
     apidata = apidata,
-    title = rfsuite.i18n.get("app.modules.rates.name"),
+    title = i18n("app.modules.rates.name"),
     reboot = false,
     eepromWrite = true,
     refreshOnRateChange = true,

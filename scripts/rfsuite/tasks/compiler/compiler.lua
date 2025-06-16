@@ -1,4 +1,5 @@
 --[[
+
  * Copyright (C) Rotorflight Project
  *
  *
@@ -15,13 +16,17 @@
  
  * Note.  Some icons have been sourced from https://www.flaticon.com/
  * 
-]] --
-local init = {
-    interval = 0.5, -- run at least every 0.1s
-    priority = 2, -- medium priority.  1 = low , 2 = medium, 3 = high, etc
-    script = "telemetry.lua", -- run this script
-    msp = false, -- do not run if busy with msp 
-    no_link = false -- run this script always
-}
 
-return init
+]] --
+local arg = {...}
+
+local compiler = {}
+
+
+function compiler.wakeup()
+
+        rfsuite.compiler.wakeup()
+
+end
+
+return compiler

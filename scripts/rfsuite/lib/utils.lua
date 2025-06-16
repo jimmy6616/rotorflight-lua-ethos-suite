@@ -19,6 +19,7 @@
 
 ]] --
 local utils = {}
+local i18n = rfsuite.i18n.get
 
 
 local arg = {...}
@@ -58,32 +59,63 @@ function utils.msp_version_array_to_indexed()
     return arr
 end
 
+--- Converts arming disable flags into a human-readable string representation.
+---
+--- This function iterates through the bits of the provided `flags` integer and checks
+--- which flags are set. For each set flag, it appends the corresponding localized
+--- string to the result. If no flags are set, it returns a localized "OK" message.
+---
+--- @param flags number The bitfield representing arming disable flags.
+--- @return string A comma-separated string of human-readable flag descriptions, or "OK" if no flags are set.
+function utils.armingDisableFlagsToString(flags)
+    if flags == nil then
+        return i18n("app.modules.status.ok"):upper()
+    end
+
+    local names = {}
+    for i = 0, 25 do
+        if (flags & (1 << i)) ~= 0 then
+            local key = "app.modules.status.arming_disable_flag_" .. i
+            local name = i18n(key)
+            if name and name ~= "" then
+                table.insert(names, name)
+            end
+        end
+    end
+
+    if #names == 0 then
+        return i18n("app.modules.status.ok"):upper()
+    end
+
+    return table.concat(names, ", "):upper()
+end
+
 -- get the governor text from the value
 function utils.getGovernorState(value)
 
     local returnvalue
 
     if not rfsuite.tasks.telemetry then
-        return rfsuite.i18n.get("widgets.governor.UNKNOWN")
+        return i18n("widgets.governor.UNKNOWN")
     end
 
     --[[
     Checks if the provided value exists as a key in the 'map' table.
     If the key exists, assigns the corresponding value from 'map' to 'returnvalue'.
-    If the key does not exist, assigns a localized "UNKNOWN" string to 'returnvalue' using 'rfsuite.i18n.get'.
+    If the key does not exist, assigns a localized "UNKNOWN" string to 'returnvalue' using 'i18n'.
     ]]    
     local map = {     
-        [0] =  rfsuite.i18n.get("widgets.governor.OFF"),
-        [1] =  rfsuite.i18n.get("widgets.governor.IDLE"),
-        [2] =  rfsuite.i18n.get("widgets.governor.SPOOLUP"),
-        [3] =  rfsuite.i18n.get("widgets.governor.RECOVERY"),
-        [4] =  rfsuite.i18n.get("widgets.governor.ACTIVE"),
-        [5] =  rfsuite.i18n.get("widgets.governor.THROFF"),
-        [6] =  rfsuite.i18n.get("widgets.governor.LOSTHS"),
-        [7] =  rfsuite.i18n.get("widgets.governor.AUTOROT"),
-        [8] =  rfsuite.i18n.get("widgets.governor.BAILOUT"),
-        [100] = rfsuite.i18n.get("widgets.governor.DISABLED"),
-        [101] = rfsuite.i18n.get("widgets.governor.DISARMED")
+        [0] =  i18n("widgets.governor.OFF"),
+        [1] =  i18n("widgets.governor.IDLE"),
+        [2] =  i18n("widgets.governor.SPOOLUP"),
+        [3] =  i18n("widgets.governor.RECOVERY"),
+        [4] =  i18n("widgets.governor.ACTIVE"),
+        [5] =  i18n("widgets.governor.THROFF"),
+        [6] =  i18n("widgets.governor.LOSTHS"),
+        [7] =  i18n("widgets.governor.AUTOROT"),
+        [8] =  i18n("widgets.governor.BAILOUT"),
+        [100] = i18n("widgets.governor.DISABLED"),
+        [101] = i18n("widgets.governor.DISARMED")
     }
 
     if rfsuite.session and rfsuite.session.apiVersion and rfsuite.session.apiVersion > 12.07 then
@@ -96,19 +128,19 @@ function utils.getGovernorState(value)
     if map[value] then
         returnvalue = map[value]
     else
-        returnvalue = rfsuite.i18n.get("widgets.governor.UNKNOWN")
+        returnvalue = i18n("widgets.governor.UNKNOWN")
     end    
 
     --[[
         Checks the value of the "armdisableflags" telemetry sensor. If the sensor value is available,
         it is floored to the nearest integer and converted to a human-readable string using
-        rfsuite.app.utils.armingDisableFlagsToString(). If the resulting string is not "OK",
+        utils.armingDisableFlagsToString(). If the resulting string is not "OK",
         the function sets 'returnvalue' to this string, indicating a reason why arming is disabled.
     --]]
     local armdisableflags = rfsuite.tasks.telemetry.getSensor("armdisableflags")
     if armdisableflags ~= nil then
         armdisableflags = math.floor(armdisableflags)
-        local armstring = rfsuite.app.utils.armingDisableFlagsToString(armdisableflags )
+        local armstring = utils.armingDisableFlagsToString(armdisableflags )
         if armstring ~= "OK" then
             returnvalue =  armstring
         end   

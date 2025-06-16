@@ -2,6 +2,7 @@
     Arm Flags Widget
     Configurable Parameters (box table fields):
     -------------------------------------------
+    wakeupinterval      : number                    -- Optional wakeup interval in seconds (set in wrapper)
     title               : string                    -- (Optional) Title text
     titlepos            : string                    -- (Optional) Title position ("top" or "bottom")
     titlealign          : string                    -- (Optional) Title alignment ("center", "left", "right")
@@ -41,7 +42,7 @@ local render = {}
 local utils = rfsuite.widgets.dashboard.utils
 local getParam = utils.getParam
 local resolveThemeColor = utils.resolveThemeColor
-local armingDisableFlagsToString = rfsuite.app.utils.armingDisableFlagsToString
+local armingDisableFlagsToString = rfsuite.utils.armingDisableFlagsToString
 local lastDisplayValue = nil
 
 function render.dirty(box)

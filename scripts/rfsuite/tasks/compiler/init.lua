@@ -17,11 +17,10 @@
  * 
 ]] --
 local init = {
-    interval = 0.5, -- run at least every 0.1s
-    priority = 2, -- medium priority.  1 = low , 2 = medium, 3 = high, etc
-    script = "telemetry.lua", -- run this script
+    interval = 5, -- run at least every 0.1s
+    priority = 0, -- medium priority.  1 = low , 2 = medium, 3 = high, etc
+    script = "compiler.lua", -- run this script
     msp = false, -- do not run if busy with msp 
-    no_link = false -- run this script always
 }
 
 return init
