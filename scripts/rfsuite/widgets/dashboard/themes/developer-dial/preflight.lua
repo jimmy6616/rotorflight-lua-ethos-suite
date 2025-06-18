@@ -38,58 +38,40 @@ local boxes = {
 
     -- DIAL
     {
-        type = "dial",
         col = 1, row = 1,
-        title = "Voltage",
-        unit = "v",
+        type = "dial",
+        title = "VOLTAGE",
         titlepos = "bottom",
+        titlefont = "FONT_XXS",
         source = "voltage",
-        aspect = "fit",
-        align = "center",
+        decimals = 1,
+        needlecolor = "white",
+        needlehubcolor = "white",
+        valuepaddingtop = 70,
         dial = 1,
-        needlecolor = "red",
-        needlehubcolor = "red",
-        needlehubsize = 5,
-        needlethickness = 4,
         font = "FONT_S",
-        min = function()
-            local cfg = rfsuite.session.batteryConfig
-            local cells = (cfg and cfg.batteryCellCount) or 3
-            local minV = (cfg and cfg.vbatmincellvoltage) or 3.0
-            return math.max(0, cells * minV)
-        end,
-        max = function()
-            local cfg = rfsuite.session.batteryConfig
-            local cells = (cfg and cfg.batteryCellCount) or 3
-            local maxV = (cfg and cfg.vbatmaxcellvoltage) or 4.2
-            return math.max(0, cells * maxV)
-        end,
+        min = 0,
+        max = 100,
+        transform = "floor",
     },
 
     -- HEATRING
     {
+        col = 2, row = 1,
         type = "gauge",
         subtype = "ring",
-        col = 2, row = 1,
+        source = "rpm",
         title = "RPM",
         min = 0,
-        max = 12000,
+        max = 2000,
         thresholds = {
-            { value = 3000,  fillcolor = "green" },
-            { value = 6000,  fillcolor = "orange" },
-            { value = 9000,  fillcolor = "orange" },
-            { value = 12000, fillcolor = "red" },
+            { value = 1000,  fillcolor = "green" },
+            { value = 1500,  fillcolor = "orange" },
+            { value = 2000,  fillcolor = "red" },
         },
-        ringsize = 0.8,
-        textoffset = 0,
-        titleoffset = 0,
-        textalign = "center",
-        titlealign = "center",
-        titlepos = "below",
+        titlepos = "bottom",
         unit = "",
         transform = "floor",
-        textcolor = "white",
-        source = "rpm",
     },
 
     -- ARCGUAGE
@@ -232,6 +214,28 @@ local boxes = {
             }
         },        
     },
+
+    -- HEATRING
+    {
+        col = 3, row = 2, rowspan = 2,
+        type = "gauge",
+        subtype = "ring",
+        source = "fuel",
+        title = "FUEL",
+        font = "FONT_XL",
+        thickness = 25,
+        ringbatt = true,
+        valuepaddingbottom = 20,
+        ringbattsubpaddingbottom = 10,
+        fillbgcolor = "lightgrey",
+        titlepos = "bottom",
+        transform = "floor",
+        thresholds = {
+            { value = 20,  fillcolor = "red"},
+            { value = 50,  fillcolor = "orange"},
+            { value = 100,  fillcolor = "green"},
+        },
+    },
 }
 
 return {
@@ -241,5 +245,7 @@ return {
         wakeup_interval = 0.1,          -- Interval (seconds) to run wakeup script when display is visible
         wakeup_interval_bg = 5,         -- (optional: run wakeup this often when not visible; set nil/empty to skip)
         paint_interval = 0.1,            -- Interval (seconds) to run paint script when display is visible 
+        spread_scheduling = true,      -- (optional: spread scheduling over the interval to avoid spikes in CPU usage)  
+        spread_ratio = 0.8              -- optional: manually override default ratio logic (applies if spread_scheduling is true)        
     }  
 }

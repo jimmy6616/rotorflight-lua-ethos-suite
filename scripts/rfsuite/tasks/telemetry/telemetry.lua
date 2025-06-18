@@ -33,6 +33,9 @@ local cache_hits, cache_misses = 0, 0
 local HOT_SIZE  = 25
 local hot_list, hot_index = {}, {}
 
+-- telemetry live values
+telemetry.liveValues = {}
+
 local function mark_hot(key)
   local idx = hot_index[key]
   if idx then
@@ -400,7 +403,7 @@ local sensorTable = {
             sim = {
                 { uid = 0x5009, unit = nil, dec = 0,
                   value = function() return rfsuite.utils.simSensors('governor') end,
-                  min = 0, max = 5 },
+                  min = 0, max = 200 },
             },
             sport = {
                 { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x5125 },
@@ -757,7 +760,7 @@ local sensorTable = {
         set_telemetry_sensors = nil,
         sensors = {
             sim = {
-                { uid = 0x5023, unit = UNIT_DEGREE, dec = 1,
+                { uid = 0x5024, unit = UNIT_DEGREE, dec = 1,
                   value = function() return rfsuite.utils.simSensors('attpitch') end,
                   min = -1800, max = 3600 },
             },
@@ -772,6 +775,30 @@ local sensorTable = {
     },   
 
 }
+
+--- Updates the `telemetry.liveValues` table with the latest sensor readings.
+-- Iterates through all sensors defined in `telemetry.sensorTable`, retrieves their current value,
+-- and stores the processed value along with its major and minor units.
+-- If a sensor has a `localizations` function, it is used to process the value and units.
+-- Only sensors with a valid source and active state are updated.
+function telemetry.updateLiveValues()
+    for key, sensorDef in pairs(telemetry.sensorTable) do
+        local source = telemetry.getSensorSource(key)
+        if source and source:state() then
+            local value = source:value()
+            local major = sensorDef.unit
+            local minor = nil
+            if sensorDef.localizations and type(sensorDef.localizations) == "function" then
+                value, major, minor = sensorDef.localizations(value)
+            end
+            telemetry.liveValues[key] = {
+                raw = value,
+                major = major,
+                minor = minor
+            }
+        end
+    end
+end
 
 --[[ 
     Retrieves the current sensor protocol.
@@ -933,25 +960,11 @@ end
 -- @param sensorKey The key identifying the telemetry sensor.
 -- @return The raw value of the sensor if found, or nil if the sensor does not exist.
 function telemetry.getSensor(sensorKey)
-    local source = telemetry.getSensorSource(sensorKey)
-    if not source then
-        return nil
+    local val = telemetry.liveValues[sensorKey]
+    if val then
+        return val.raw, val.major, val.minor
     end
-
-    -- get initial defaults
-    local value = source:value()                        -- get the raw value from the source
-    local major = sensorTable[sensorKey].unit or nil    -- use the default unit if defined
-    local minor = nil                                   -- minor version is not possible without a localizations function which we do not have yet
-
-
-    -- if the sensor has a transform function, apply it to the value:
-    if sensorTable[sensorKey] and sensorTable[sensorKey].localizations and type(sensorTable[sensorKey].localizations) == "function" then
-        value, major, minor = sensorTable[sensorKey].localizations(value)
-    end
-
-    -- Return the value
-    return value, major, minor
-
+    return nil
 end
 
 --[[ 
@@ -1080,18 +1093,18 @@ function telemetry.wakeup()
         if onchangeInitialized then
             onchangeInitialized = false
         else
-            -- Now iterate only over filteredOnchangeSensors
             for sensorKey, sensorDef in pairs(filteredOnchangeSensors) do
                 local source = telemetry.getSensorSource(sensorKey)
                 if source and source:state() then
                     local val = source:value()
                     if lastSensorValues[sensorKey] ~= val then
-                        -- Invoke onchange with the new value
                         sensorDef.onchange(val)
                         lastSensorValues[sensorKey] = val
                     end
                 end
             end
+            -- Update cached values
+            telemetry.updateLiveValues()
         end
     end
 

@@ -15,17 +15,25 @@
  * Note: Some icons have been sourced from https://www.flaticon.com/
 ]]--
 
+local postFlightDelay = 10
+local themeStartTime = rfsuite.clock
+local cachedVpc = nil
 
 local function maxVoltageToCellVoltage(value)
+    if cachedVpc then return cachedVpc end
+
+    local now = rfsuite.clock
+    local elapsed = now - themeStartTime
+    if elapsed < postFlightDelay then return nil end
+
     local cfg = rfsuite.session.batteryConfig
     local cells = (cfg and cfg.batteryCellCount) or 3
+    if not cells or not value then return nil end
 
-    if cfg and cells and value then
-        value = math.max(0, value / cells)
-        value = math.floor(value * 100 + 0.5) / 100  -- round to 2 decimal places
-    end
-
-    return value
+    local vpc = math.max(0, value / cells)
+    vpc = math.floor(vpc * 100 + 0.5) / 100
+    cachedVpc = vpc
+    return vpc
 end
 
 local darkMode = {
@@ -56,43 +64,23 @@ local layout = {
 }
 
 local boxes = {
-    -- Batt Bar Summary
-    {col = 1, row = 1, colspan = 3,
-    type = "gauge",
-    source = "fuel",
-    battadv = true,
-    battstats = true,
-    title = "BATTERY INFORMATION",
-    titlealign = "center",
-    valuealign = "center",
-    unit = "%  Remaining",
-    valuepaddingtop = 20,
-    battadvfont = "FONT_STD",
-    font = "FONT_L",
-    battadvpaddingtop = 15,
-    battadvpaddingright = 30,
-    battadvvaluealign = "center",
-    transform = "floor",
-    bgcolor = colorMode.bgcolor,
-    fillbgcolor = colorMode.bgcolor,
-    titlecolor = colorMode.titlecolor,
-    textcolor = "orange",
-    },
-
     -- Flight info and RPM info
-    {col = 1, row = 2, type = "time", subtype = "flight", title = "FLIGHT DURATION", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange"},
-    {col = 1, row = 3, type = "time", subtype = "total", title = "TOTAL MODEL FLIGHT DURATION", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange"},
-    {col = 1, row = 4, type = "text", subtype = "stats", stattype = "min", source = "rssi", title = "LINK MIN", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 1, row = 1, type = "time", subtype = "flight", title = "Flight Duration", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange"},
+    {col = 1, row = 2, type = "time", subtype = "total", title = "Total Model Flight Duration", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange"},
+    {col = 1, row = 3, type = "text", subtype = "stats", stattype = "min", source = "rpm", title = "RPM Min", unit = " rpm", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 1, row = 4, type = "text", subtype = "stats", source = "rpm", title = "RPM Max", unit = " rpm", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
 
     -- Flight max/min stats 1
-    {col = 2, row = 2, type = "text", subtype = "stats", stattype = "min", source = "rpm", title = "RPM MIN", unit = " rpm", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
-    {col = 2, row = 3, type = "text", subtype = "stats", source = "rpm", title = "RPM MAX", unit = " rpm", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
-    {col = 2, row = 4, type = "text", subtype = "stats", source = "throttle_percent", title = "THROTTLE MAX", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 2, row = 1, type = "text", subtype = "stats", source = "throttle_percent", title = "Throttle Max", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 2, row = 2, type = "text", subtype = "stats", source = "current", title = "Current Max", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 2, row = 3, type = "text", subtype = "stats", source = "temp_esc", title = "ESC Temp Max", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 2, row = 4, type = "text", subtype = "stats", source = "altitude", title = "Altitude Max", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
 
     -- Flight max/min stats 2
-    {col = 3, row = 2, type = "text", subtype = "stats", source = "current", title = "CURRENT MAX", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
-    {col = 3, row = 3, type = "text", subtype = "stats", source = "temp_esc", title = "ESC TEMP MAX", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
-    {col = 3, row = 4, type = "text", subtype = "stats", source = "altitude", title = "ALTITUDE MAX", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"}, 
+    {col = 3, row = 1, type = "text", subtype = "stats", stattype = "max", source = "consumption", title = "Consumed mAh", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 3, row = 2, type = "text", subtype = "stats", stattype = "min", source = "fuel", title = "Fuel Remaining", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
+    {col = 3, row = 3, type = "text", subtype = "stats", stattype = "min", source = "voltage", title = "Min Volts per cell", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = function(v) return maxVoltageToCellVoltage(v) end},
+    {col = 3, row = 4, type = "text", subtype = "stats", stattype = "min", source = "rssi", title = "Link Min", titlepos = "top", bgcolor = colorMode.bgcolor, titlecolor = colorMode.titlecolor, textcolor = "orange", transform = "floor"},
 }
 
 return {
@@ -102,5 +90,7 @@ return {
         wakeup_interval = 0.1,          -- Interval (seconds) to run wakeup script when display is visible
         wakeup_interval_bg = 5,         -- (optional: run wakeup this often when not visible; set nil/empty to skip)
         paint_interval = 0.1,            -- Interval (seconds) to run paint script when display is visible 
+        spread_scheduling = true,      -- (optional: spread scheduling over the interval to avoid spikes in CPU usage)  
+        spread_ratio = 0.8              -- optional: manually override default ratio logic (applies if spread_scheduling is true)        
     } 
 }
