@@ -24,6 +24,9 @@ rfsuite.session = {}
 -- initialise global clock
 rfsuite.clock = os.clock()
 
+-- initialise legacy font if not already set (ethos 1.6 vs 1.7)
+if not FONT_M then FONT_M = FONT_STD end
+
 
 -- RotorFlight + ETHOS LUA configuration
 local config = {}
@@ -35,7 +38,7 @@ config.icon_logtool = lcd.loadMask("app/gfx/icon_logtool.png")          -- icon
 config.icon_unsupported = lcd.loadMask("app/gfx/unsupported.png")                   -- icon
 config.version = {major = 2, minor = 3, revision = 0, suffix = "DEV"}               -- version of the script
 config.ethosVersion = {1, 6, 2}                                                      -- min version of ethos supported by this script                                                     
-config.supportedMspApiVersion = {"12.07","12.08"}                          -- supported msp versions
+config.supportedMspApiVersion = {"12.07","12.08","12.09"}                          -- supported msp versions
 config.baseDir = "rfsuite"                                                          -- base directory for the suite. This is only used by msp api to ensure correct path
 config.preferences = config.baseDir .. ".user"                                      -- user preferences folder location
 config.defaultRateProfile = 4 -- ACTUAL                                             -- default rate table [default = 4]
@@ -134,9 +137,6 @@ rfsuite.utils = assert(rfsuite.compiler.loadfile("lib/utils.lua"))(rfsuite.confi
 rfsuite.app = assert(rfsuite.compiler.loadfile("app/app.lua"))(rfsuite.config)
 
 
-
-
-
 -- 
 -- This script initializes the `rfsuite` tasks and background task.
 -- 
@@ -230,6 +230,7 @@ rfsuite.session.batteryConfig = nil
     -- vbatwarningcellvoltage = nil
     -- vbatmincellvoltage = nil
     -- vbatmaxcellvoltage = nil
+    -- vbatfullcellvoltage = nil
     -- lvcPercentage = nil
     -- consumptionWarningPercentage = nil
 rfsuite.session.modelPreferences = nil -- this is used to store the model preferences
@@ -324,7 +325,7 @@ local function init()
                         local w, h = lcd.getWindowSize()
                         local textColor = lcd.RGB(255, 255, 255, 1) 
                         lcd.color(textColor)
-                        lcd.font(FONT_STD)
+                        lcd.font(FONT_M)
                         local badVersionMsg = string.format("ETHOS < V%d.%d.%d", table.unpack(config.ethosVersion))
                         local textWidth, textHeight = lcd.getTextSize(badVersionMsg)
                         local x = (w - textWidth) / 2

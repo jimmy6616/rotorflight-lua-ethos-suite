@@ -19,8 +19,10 @@ local telemetry = rfsuite.tasks.telemetry
 local utils = rfsuite.widgets.dashboard.utils
 
 local W, H = lcd.getWindowSize()
+local VERSION = system.getVersion().board
+
 local gaugeThickness = 30
-if W < 500 then gaugeThickness = 15 end
+if VERSION == "X18" or VERSION == "X18S" or VERSION == "X14" or VERSION == "X14S" then gaugeThickness = 15 end
 
 local darkMode = {
     textcolor   = "white",
@@ -209,6 +211,7 @@ local boxes = {
     titlecolor = colorMode.titlecolor,
     textcolor = colorMode.titlecolor,
     bgcolor = colorMode.bgcolor,
+    wakeupinterval = 0.001,
     thresholds = {
         { value = 30,  fillcolor = "red",    textcolor = colorMode.textcolor },
         { value = 50,  fillcolor = "orange", textcolor = colorMode.textcolor },
@@ -232,6 +235,7 @@ local boxes = {
     titlecolor = colorMode.titlecolor,
     textcolor = colorMode.titlecolor,
     bgcolor = colorMode.bgcolor,
+    wakeupinterval = 0.001,
     min = function()
         local cfg = rfsuite.session.batteryConfig
         local cells = (cfg and cfg.batteryCellCount) or 3
@@ -242,21 +246,7 @@ local boxes = {
     max = function()
         local cfg = rfsuite.session.batteryConfig
         local cells = (cfg and cfg.batteryCellCount) or 3
-        local maxV  = (cfg and cfg.vbatmaxcellvoltage) or 4.2
-        return math.max(0, cells * maxV)
-    end,
-
-    gaugemin = function()
-        local cfg = rfsuite.session.batteryConfig
-        local cells = (cfg and cfg.batteryCellCount) or 3
-        local minV  = (cfg and cfg.vbatmincellvoltage) or 3.0
-        return math.max(0, cells * minV)
-    end,
-
-    gaugemax = function()
-        local cfg = rfsuite.session.batteryConfig
-        local cells = (cfg and cfg.batteryCellCount) or 3
-        local maxV  = (cfg and cfg.vbatmaxcellvoltage) or 4.2
+        local maxV  = (cfg and cfg.vbatfullcellvoltage) or 4.2
         return math.max(0, cells * maxV)
     end,
 
@@ -265,13 +255,13 @@ local boxes = {
         {
             value = function(box)
                 -- Fetch the raw gaugemin parameter (could itself be a function)
-                local raw_gm = utils.getParam(box, "gaugemin")
+                local raw_gm = utils.getParam(box, "min")
                 if type(raw_gm) == "function" then
                     raw_gm = raw_gm(box)
                 end
 
                 -- Fetch the raw gaugemax parameter (could itself be a function)
-                local raw_gM = utils.getParam(box, "gaugemax")
+                local raw_gM = utils.getParam(box, "max")
                 if type(raw_gM) == "function" then
                     raw_gM = raw_gM(box)
                 end
@@ -284,12 +274,12 @@ local boxes = {
         },
         {
             value = function(box)
-                local raw_gm = utils.getParam(box, "gaugemin")
+                local raw_gm = utils.getParam(box, "min")
                 if type(raw_gm) == "function" then
                     raw_gm = raw_gm(box)
                 end
 
-                local raw_gM = utils.getParam(box, "gaugemax")
+                local raw_gM = utils.getParam(box, "max")
                 if type(raw_gM) == "function" then
                     raw_gM = raw_gM(box)
                 end
@@ -302,7 +292,7 @@ local boxes = {
         },
         {
             value = function(box)
-                local raw_gM = utils.getParam(box, "gaugemax")
+                local raw_gM = utils.getParam(box, "max")
                 if type(raw_gM) == "function" then
                     raw_gM = raw_gM(box)
                 end
@@ -324,10 +314,10 @@ return {
   layout    = layout,
   boxes     = boxes,
   scheduler = {
-    wakeup_interval    = 0.1,
+    wakeup_interval    = 0.025,
     wakeup_interval_bg = 5,
-    paint_interval     = 0.1,
+    paint_interval     = 0.025,
     spread_scheduling = true,      -- (optional: spread scheduling over the interval to avoid spikes in CPU usage)  
-    spread_ratio = 0.8              -- optional: manually override default ratio logic (applies if spread_scheduling is true)
+    spread_ratio = 1               -- optional: manually override default ratio logic (applies if spread_scheduling is true)
   }
 }

@@ -61,8 +61,8 @@ local loadedStateModules = {}
 
 -- Intervals (in seconds) for various scheduler and paint operations:
 local loadedThemeIntervals = {
-    wakeup_interval     = 0.25,  -- how often to wake the widget when visible
-    wakeup_interval_bg  = nil,   -- how often to wake when not visible (nil = skip)
+    wakeup_interval     = 0.025,  -- how often to wake the widget when visible
+    wakeup_interval_bg  = 5,      -- how often to wake when not visible (nil = skip)
     paint_interval      = 0.5,   -- how often to force a repaint
 }
 
@@ -132,6 +132,10 @@ dashboard._moduleCache = dashboard._moduleCache or {}
 -- how many paint‐cycles to keep showing the spinner (5 s ÷ paint_interval)
 dashboard._hg_cycles_required = math.ceil(0.5 / (loadedThemeIntervals.paint_interval or 0.5))
 dashboard._hg_cycles = 0
+
+-- how long the loader must stay visible (in seconds)
+dashboard._loader_min_duration = 1.5
+dashboard._loader_start_time = nil
 
 -- Utility methods loaded from external utils.lua (drawing, color helpers, etc.)
 dashboard.utils = assert(
@@ -275,7 +279,7 @@ function dashboard.computeOverlayMessage()
         return i18n("widgets.dashboard.check_rf_module_on")
     elseif not (sportSensor or elrsSensor) then
         return i18n("widgets.dashboard.check_discovered_sensors")
-    elseif not rfsuite.session.apiVersion and  state ~= "postflight" then
+    elseif not rfsuite.session.isConnected  and  state ~= "postflight" then
         return i18n("widgets.dashboard.waiting_for_connection")    
     elseif not rfsuite.session.telemetryState and state == "preflight" then
         return i18n("widgets.dashboard.no_link")
@@ -437,7 +441,9 @@ function dashboard.renderLayout(widget, config)
     ----------------------------------------------------------------
     -- PHASE 2: Spinner Until First Wakeup Pass Completes
     ----------------------------------------------------------------
-    if objectsThreadedWakeupCount < 1 then
+    dashboard._loader_start_time = dashboard._loader_start_time or rfsuite.clock
+    local loaderElapsed = rfsuite.clock - dashboard._loader_start_time
+    if objectsThreadedWakeupCount < 1 or loaderElapsed < dashboard._loader_min_duration then
         dashboard.loader(0, 0, W, H)
         lcd.invalidate()
         return
@@ -672,9 +678,9 @@ function dashboard.reload_themes(force)
     if mod and mod.scheduler then
         local initTable = (type(mod.scheduler) == "function") and mod.scheduler() or mod.scheduler
         if type(initTable) == "table" then
-            loadedThemeIntervals.wakeup_interval    = initTable.wakeup_interval or 0.25
+            loadedThemeIntervals.wakeup_interval    = initTable.wakeup_interval or 0.025
             loadedThemeIntervals.wakeup_interval_bg = initTable.wakeup_interval_bg
-            loadedThemeIntervals.paint_interval     = initTable.paint_interval or 0.5
+            loadedThemeIntervals.paint_interval     = initTable.paint_interval or 0.025
 
             dashboard._useSpreadScheduling = (initTable.spread_scheduling ~= false)
 
@@ -987,13 +993,14 @@ function dashboard.wakeup(widget)
     local visible = lcd.isVisible()
 
     if visible then
-        local base_interval = loadedThemeIntervals.wakeup_interval or 0.25
+
+        local base_interval = loadedThemeIntervals.wakeup_interval or 0.025
         local interval = base_interval
 
         lcd.resetFocusTimeout()
 
-        if base_interval <= 0.25 and #dashboard.boxRects > 15 then
-            interval = 0.25
+        if base_interval <= 0.025 and #dashboard.boxRects > 15 then
+            interval = 0.025
         end
 
         if (now - lastWakeup) < interval then return end

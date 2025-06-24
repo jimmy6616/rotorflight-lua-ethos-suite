@@ -24,17 +24,92 @@ local protocol, telemetrySOURCE, crsfSOURCE
 
 
 -- sensor cache: weak values so GC can drop cold sources
-local sensors   = {}
+local sensors   = setmetatable({}, { __mode = "v" })
 
 -- debug counters
 local cache_hits, cache_misses = 0, 0
 
+-- variables for 2 step fuel calculation with delays to allow voltage to stabilise for 10 seconds
+local fuelReadyTime = nil
+local fuelStartingPercent = nil
+local fuelStartingConsumption = nil
+
+-- 2 step fuel calculation logic with mah consumption (shared function for sim and sensor)
+local function smartFuelCalc()
+    local bc = rfsuite and rfsuite.session and rfsuite.session.batteryConfig
+    local consumption = telemetry and telemetry.getSensor and telemetry.getSensor("consumption") or nil
+    local voltage = telemetry and telemetry.getSensor and telemetry.getSensor("voltage") or nil
+    local cellCount = bc and bc.batteryCellCount or 0
+    local packCapacity = bc and bc.batteryCapacity or 0
+    local reserve = bc and bc.consumptionWarningPercentage or 0
+    local maxCellV = bc and bc.vbatmaxcellvoltage or 4.2
+    local minCellV = bc and bc.vbatmincellvoltage or 3.3
+    local fullCellV = bc and bc.vbatfullcellvoltage or 4.1
+
+    -- Clamp reserve to sane values
+    if reserve > 80 or reserve < 0 then reserve = 20 end
+
+    -- Early exit if config is missing or invalid
+    if not packCapacity or packCapacity < 10 or not cellCount or cellCount < 2 then
+        fuelReadyTime = nil
+        fuelStartingPercent = nil
+        fuelStartingConsumption = nil
+        return nil
+    end
+
+    -- Set up the grace period on first call
+    local now = rfsuite.clock
+    if not fuelReadyTime then
+        fuelReadyTime = now + 10
+        fuelStartingPercent = nil
+        fuelStartingConsumption = nil
+        return nil
+    end
+
+    -- Wait until the grace period has elapsed
+    if now < fuelReadyTime then
+        return nil
+    end
+
+    -- Step 1: After delay, determine initial fuel % from voltage
+    if not fuelStartingPercent then
+        local perCell = (voltage and cellCount > 0) and (voltage / cellCount) or 0
+        if perCell >= fullCellV then
+            fuelStartingPercent = 100
+        elseif perCell <= minCellV then
+            fuelStartingPercent = 0
+        else
+            local usableRange = maxCellV - minCellV
+            local pct = ((perCell - minCellV) / usableRange) * 100
+            -- Apply reserve as "zero" point
+            if reserve > 0 and pct <= reserve then
+                fuelStartingPercent = 0
+            else
+                fuelStartingPercent = math.floor(math.max(0, math.min(100, pct)))
+            end
+        end
+        local usableCapacity = packCapacity * (1 - reserve / 100)
+        local estimatedUsed = usableCapacity * (1 - fuelStartingPercent / 100)
+        fuelStartingConsumption = (consumption or 0) - estimatedUsed
+    end
+
+    -- Step 2: Use mAh consumption to track % drop after initial value
+    if consumption and fuelStartingConsumption and packCapacity > 0 then
+        local used = consumption - fuelStartingConsumption
+        local usableCapacity = packCapacity * (1 - reserve / 100)
+        if usableCapacity < 10 then usableCapacity = packCapacity end
+        local percentUsed = used / usableCapacity * 100
+        local remaining = math.max(0, fuelStartingPercent - percentUsed)
+        return math.floor(math.min(100, remaining) + 0.5)
+    else
+        -- If consumption isn't available, just show initial percent
+        return fuelStartingPercent
+    end
+end
+
 -- LRU for hot sources
 local HOT_SIZE  = 25
 local hot_list, hot_index = {}, {}
-
--- telemetry live values
-telemetry.liveValues = {}
 
 local function mark_hot(key)
   local idx = hot_index[key]
@@ -62,7 +137,7 @@ end
 
 -- Rate‐limiting for wakeup()
 local sensorRateLimit = rfsuite.clock
-local SENSOR_RATE = 0.25        -- 1 second between onchange scans
+local ONCHANGE_RATE = 0.5        -- 1 second between onchange scans
 
 -- Store the last validated sensors and timestamp
 local lastValidationResult = nil
@@ -76,6 +151,7 @@ local telemetryState = false
 
 -- Store last seen values for each sensor (by key)
 local lastSensorValues = {}
+
 
 telemetry.sensorStats = {}
 
@@ -355,9 +431,11 @@ local sensorTable = {
         unit_string = "%",
         sensors = {
             sim = {
-                { uid = 0x5007, unit = UNIT_PERCENT, dec = 0,
-                  value = function() return rfsuite.utils.simSensors('fuel') end,
-                  min = 0, max = 100 },
+                { 
+                    uid = 0x5007, unit = UNIT_PERCENT, dec = 0,
+                    value = smartFuelCalc,                    
+                    min = 0, max = 100
+                },
             },
             sport = {
                 { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0600 },
@@ -367,6 +445,11 @@ local sensorTable = {
             },
             crsfLegacy = { "Rx Batt%" },
         },
+        source = function()
+            return {
+                value = smartFuelCalc,                    
+            }
+        end,
     },
 
     consumption = {
@@ -774,31 +857,29 @@ local sensorTable = {
         },
     },   
 
-}
+    -- Attitude Pitch
+    groundspeed = {
+        name = i18n("telemetry.sensors.groundspeed"),
+        mandatory = false,
+        stats = false,
+        set_telemetry_sensors = nil,
+        sensors = {
+            sim = {
+                { uid = 0x5025, unit = UNIT_KNOT, dec = 1,
+                  value = function() return rfsuite.utils.simSensors('groundspeed') end,
+                  min = -1800, max = 3600 },
+            },
+            sport = {
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0830, subId = 1 },
+            },
+            crsf = {
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x1128},
+            },
+            crsfLegacy = { nil },
+        },
+    },       
 
---- Updates the `telemetry.liveValues` table with the latest sensor readings.
--- Iterates through all sensors defined in `telemetry.sensorTable`, retrieves their current value,
--- and stores the processed value along with its major and minor units.
--- If a sensor has a `localizations` function, it is used to process the value and units.
--- Only sensors with a valid source and active state are updated.
-function telemetry.updateLiveValues()
-    for key, sensorDef in pairs(telemetry.sensorTable) do
-        local source = telemetry.getSensorSource(key)
-        if source and source:state() then
-            local value = source:value()
-            local major = sensorDef.unit
-            local minor = nil
-            if sensorDef.localizations and type(sensorDef.localizations) == "function" then
-                value, major, minor = sensorDef.localizations(value)
-            end
-            telemetry.liveValues[key] = {
-                raw = value,
-                major = major,
-                minor = minor
-            }
-        end
-    end
-end
+}
 
 --[[ 
     Retrieves the current sensor protocol.
@@ -955,16 +1036,51 @@ function telemetry.getSensorSource(name)
 end
 
 --- Retrieves the value of a telemetry sensor by its key.
--- Looks up the sensor source using the provided sensorKey.
--- If the sensor source is found, returns its raw value; otherwise, returns nil.
+-- This function now supports both physical sensors (linked to telemetry sources)
+-- and virtual/computed sensors (which define a `.source` function in sensorTable).
+--
+-- 1. If the sensorTable entry includes a `source` function (virtual/computed sensor),
+--    this function is called and its `.value()` result is returned.
+-- 2. Otherwise, attempts to resolve the sensor as a physical/real telemetry source.
+--    If found, returns its value; otherwise, returns nil.
+-- 3. If a `localizations` function is defined for the sensor, it is applied to
+--    transform the raw value and resolve units as needed.
+--
 -- @param sensorKey The key identifying the telemetry sensor.
--- @return The raw value of the sensor if found, or nil if the sensor does not exist.
+-- @return The sensor value (possibly transformed), primary unit (major), and secondary unit (minor) if available.
 function telemetry.getSensor(sensorKey)
-    local val = telemetry.liveValues[sensorKey]
-    if val then
-        return val.raw, val.major, val.minor
+    local entry = sensorTable[sensorKey]
+
+    if entry and type(entry.source) == "function" then
+        local src = entry.source()
+        if src and type(src.value) == "function" then
+            local value, major, minor = src.value()
+            major = major or entry.unit
+            -- Optionally apply localization, if needed:
+            if entry.localizations and type(entry.localizations) == "function" then
+                value, major, minor = entry.localizations(value)
+            end
+            return value, major, minor
+        end
     end
-    return nil
+
+    -- Physical/real telemetry source
+    local source = telemetry.getSensorSource(sensorKey)
+    if not source then
+        return nil
+    end
+
+    -- get initial defaults
+    local value = source:value()
+    local major = entry and entry.unit or nil
+    local minor = nil
+
+    -- if the sensor has a transform function, apply it to the value:
+    if entry and entry.localizations and type(entry.localizations) == "function" then
+        value, major, minor = entry.localizations(value)
+    end
+
+    return value, major, minor
 end
 
 --[[ 
@@ -1051,7 +1167,7 @@ function telemetry.reset()
     telemetrySOURCE, crsfSOURCE, protocol = nil, nil, nil
     sensors = {}
     hot_list, hot_index = {}, {}
-    telemetry.sensorStats = {}
+    --telemetry.sensorStats = {} -- we defer this to onconnect
     -- Also reset onchange tracking so we rebuild next time:
     filteredOnchangeSensors = nil
     lastSensorValues = {}
@@ -1073,8 +1189,8 @@ function telemetry.wakeup()
         return
     end
 
-    -- Rate‐limited “onchange” scanning (every SENSOR_RATE seconds)
-    if (now - sensorRateLimit) >= SENSOR_RATE then
+    -- Rate‐limited “onchange” scanning (every ONCHANGE_RATE seconds)
+    if (now - sensorRateLimit) >= ONCHANGE_RATE then
         sensorRateLimit = now
 
         -- Build reduced table of onchange‐capable sensors exactly once:
@@ -1093,18 +1209,18 @@ function telemetry.wakeup()
         if onchangeInitialized then
             onchangeInitialized = false
         else
+            -- Now iterate only over filteredOnchangeSensors
             for sensorKey, sensorDef in pairs(filteredOnchangeSensors) do
                 local source = telemetry.getSensorSource(sensorKey)
                 if source and source:state() then
                     local val = source:value()
                     if lastSensorValues[sensorKey] ~= val then
+                        -- Invoke onchange with the new value
                         sensorDef.onchange(val)
                         lastSensorValues[sensorKey] = val
                     end
                 end
             end
-            -- Update cached values
-            telemetry.updateLiveValues()
         end
     end
 

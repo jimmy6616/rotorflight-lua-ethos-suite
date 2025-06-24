@@ -24,7 +24,7 @@
  *         unit: <constant>             -- Telemetry unit (e.g., UNIT_RAW, UNIT_VOLT, etc.)
  *         minimum: <number>            -- Optional minimum value (default: -1e9)
  *         maximum: <number>            -- Optional maximum value (default: 1e9)
- *         process: <function>          -- Optional value processing function before display
+ *         transform: <function>        -- Optional value processing function before display
  *       },
  *       ...
  *     }
@@ -82,24 +82,59 @@ local msp_sensors = {
         fields = {
             flags = {
                 sensorname = "BBL Flags",
-                sessionname = "bblFlags",
+                sessionname = {"bblFlags"},
                 appId = 0x5FFF,
                 unit = UNIT_RAW,
             },
             total = {
                 sensorname = "BBL Size",
-                sessionname = "bblSize",
+                sessionname = {"bblSize"},
                 appId = 0x5FFE,
                 unit = UNIT_RAW,
             },
             used = {
                 sensorname = "BBL Used",
-                sessionname = "bblUsed",
+                sessionname = {"bblUsed"},
                 appId = 0x5FFD,
                 unit = UNIT_RAW,
-            },
+            },         
         }
     },
+    BATTERY_CONFIG = {
+        interval_armed = -1,
+        interval_disarmed = 5,
+        interval_admin = 10,
+        fields = {
+            batteryCapacity = {
+                sessionname = { "batteryConfig", "batteryCapacity" },
+            },
+            batteryCellCount = {
+                sessionname = { "batteryConfig", "batteryCellCount" },
+            },
+            vbatwarningcellvoltage = {
+                sessionname = { "batteryConfig", "vbatwarningcellvoltage" },
+                transform     = function(v) return v / 100 end,
+            },
+            vbatmincellvoltage = {
+                sessionname = { "batteryConfig", "vbatmincellvoltage" },
+                transform     = function(v) return v / 100 end,
+            },
+            vbatmaxcellvoltage = {
+                sessionname = { "batteryConfig", "vbatmaxcellvoltage" },
+                transform     = function(v) return v / 100 end,
+            },
+            vbatfullcellvoltage = {
+                sessionname = { "batteryConfig", "vbatfullcellvoltage" },
+                transform     = function(v) return v / 100 end,
+            },
+            lvcPercentage = {
+                sessionname = { "batteryConfig", "lvcPercentage" },
+            },
+            consumptionWarningPercentage = {
+                sessionname = { "batteryConfig", "consumptionWarningPercentage" },
+            },
+        }        
+    }       
 }
 
 msp.sensors = msp_sensors
@@ -139,10 +174,24 @@ local function createOrUpdateSensor(appId, fieldMeta, value)
 end
 
 local function updateSessionField(meta, value)
-    if meta.sessionname and rfsuite.session then
-        rfsuite.session[meta.sessionname] = value
+  if not meta.sessionname or type(rfsuite.session) ~= "table" then
+    return
+  end
+
+  local t = rfsuite.session
+  -- walk all but the last key
+  for i = 1, #meta.sessionname - 1 do
+    local k = meta.sessionname[i]
+    if type(t[k]) ~= "table" then
+      t[k] = {}
     end
+    t = t[k]
+  end
+
+  -- set the leaf
+  t[meta.sessionname[#meta.sessionname]] = value
 end
+
 
 local lastWakeupTime = 0
 function msp.wakeup()
@@ -197,7 +246,7 @@ function msp.wakeup()
             meta.last_sent_value = meta.last_sent_value or nil
 
             -- Refresh the telemetry sensor every 5s with cached value
-            if meta.last_sent_value ~= nil and (now - meta.last_update_time) >= 5 then
+            if meta.appId and meta.last_sent_value ~= nil and (now - meta.last_update_time) >= 5 then
                 createOrUpdateSensor(meta.appId, meta, meta.last_sent_value)
                 meta.last_update_time = now
             end
@@ -206,7 +255,7 @@ function msp.wakeup()
         if interval > 0 and (now - api_meta.last_time) >= interval then
             api_meta.last_time = now
 
-            log("MSP API: " .. api_name .. " interval: " .. interval, "debug")
+            --log("MSP API: " .. api_name .. " interval: " .. interval, "info")
 
             local API = tasks.msp.api.load(api_name)
             API.setCompleteHandler(function(self, buf)
@@ -216,14 +265,22 @@ function msp.wakeup()
                         meta.last_sent_value = value
                         meta.last_update_time = now
 
-                        updateSessionField(meta, value)
+                        -- apply transformation if defined
+                        if meta.transform and type(meta.transform) == "function" then
+                            value = meta.transform(value)
+                        end
 
+                        -- update sensor
                         if meta.sensorname and meta.appId then
-                            if meta.process and type(meta.process) == "function" then
-                                value = meta.process(value)
-                            end
+                            updateSessionField(meta, value)
                             createOrUpdateSensor(meta.appId, meta, value)
                         end
+
+                        -- update session variable
+                        if meta.sessionname  then
+                            updateSessionField(meta, value)
+                        end
+
                     end
                 end
             end)

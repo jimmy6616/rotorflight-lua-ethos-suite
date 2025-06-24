@@ -255,19 +255,29 @@ function utils.playFile(pkg, file)
     -- Get and clean audio voice path
     local av = system.getAudioVoice():gsub("SD:", ""):gsub("RADIO:", ""):gsub("AUDIO:", ""):gsub("VOICE[1-4]:", ""):gsub("audio/", "")
     
-    
     -- Ensure av does not start with a slash
     if av:sub(1, 1) == "/" then
         av = av:sub(2)
     end
 
     -- Construct file paths
-    local wavLocale = "audio/" .. av .. "/" .. pkg .. "/" .. file
-    local wavDefault = "audio/en/default/" .. pkg .. "/" .. file
+    local wavUser   = "SCRIPTS:/rfsuite.user/audio/user/"      .. pkg .. "/" .. file
+    local wavLocale = "SCRIPTS:/rfsuite.user/audio/" .. av .. "/" .. pkg .. "/" .. file
+    local wavDefault= "SCRIPTS:/rfsuite/audio/en/default/"    .. pkg .. "/" .. file
 
-    -- Check if locale file exists, else use the default
-    system.playFile(rfsuite.utils.file_exists(wavLocale) and wavLocale or wavDefault)
+    -- Determine which file to play: user → locale → default
+    local path
+    if rfsuite.utils.file_exists(wavUser) then
+        path = wavUser
+    elseif rfsuite.utils.file_exists(wavLocale) then
+        path = wavLocale
+    else
+        path = wavDefault
+    end
+
+    system.playFile(path)
 end
+
 
 function utils.playFileCommon(file)
     system.playFile("audio/" .. file)
@@ -636,28 +646,15 @@ end
         during loading or execution, it prints an error message and returns 0.
 --]]
 function utils.simSensors(id)
-
     os.mkdir("LOGS:")
     os.mkdir("LOGS:/rfsuite")
     os.mkdir("LOGS:/rfsuite/sensors")
 
     if id == nil then return 0 end
 
-    local localPath = "LOGS:/rfsuite/sensors/" .. id .. ".lua"
-    local fallbackPath = "sim/sensors/" .. id .. ".lua"
+    local filepath = "sim/sensors/" .. id .. ".lua"
 
-    local filepath
-
-    if rfsuite.utils.file_exists(localPath) then
-        filepath = localPath
-    elseif rfsuite.utils.file_exists(fallbackPath) then
-        filepath = fallbackPath
-    else
-        return 0
-    end
-
-    -- this should never be changed to use compiler.loadfile
-    -- as it caches - prventing re-calls with different results!
+    -- loadfile will fail gracefully if file doesn't exist or has errors
     local chunk, err = loadfile(filepath)
     if not chunk then
         print("Error loading telemetry file: " .. err)
@@ -665,7 +662,6 @@ function utils.simSensors(id)
     end
 
     local success, result = pcall(chunk)
-
     if not success then
         print("Error executing telemetry file: " .. result)
         return 0
@@ -673,6 +669,7 @@ function utils.simSensors(id)
 
     return result
 end
+
 
 -- Splits a given string into a table of substrings based on a specified separator.
 -- @param input The string to be split.

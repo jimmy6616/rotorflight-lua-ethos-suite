@@ -17,12 +17,11 @@
  * 
 ]] --
 local init = {
-    intmin    = 1,                      -- minimum number of seconds to wait between runs (i.e. don’t run more often than every 0.25s)
-    intmax    = 2,                      -- maximum number of seconds to wait between runs (i.e. ensure it runs at least once every 0.5s)
-    priority  = 1,                      -- scheduling priority (1 = low, 2 = medium, 3 = high, etc.)
-    script    = "logging.lua",          -- the task’s entry-point script
-    isolate   = { msp = true },         -- table of peer tasks not to run in the same cycle
-    nolink    = false,                   -- if true, runs even when the telemetry link is down
+    interval        = 2,               -- run every 5 seconds  
+    script          = "logging.lua",   -- run this script
+    linkrequired    = true,            -- run this script only if link is established        
+    spreadschedule  = true,            -- run on every loop 
+    simulatoronly   = false,           -- run this script in simulation mode         
 }
 
 return init
