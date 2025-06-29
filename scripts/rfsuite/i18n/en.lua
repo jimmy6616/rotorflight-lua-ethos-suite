@@ -93,6 +93,7 @@ return {
       ["tbl_alwayson"] = "Always On",
       ["throttle_min"] = "Minimum throttle value",
       ["tbl_disabled"] = "Disabled",
+      ["tbl_auto"] = "Auto",
       ["starting_torque"] = "Starting torque for the motor",
       ["cell_count"] = "Number of cells in the battery",
       ["motor_erpm_max"] = "Maximum RPM",
@@ -244,6 +245,9 @@ return {
       ["tbl_autocalculate"] = "Auto Calculate",
       ["tbl_enabled"] = "Enabled",
       ["tbl_reverse"] = "Reverse"
+    },
+    ["PILOT_CONFIG"] = {
+      ["model_param1_value"] = "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached."
     },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "The minimum voltage per cell before the low voltage alarm is triggered.",
@@ -763,7 +767,8 @@ return {
         ["battery_capacity"] = "Battery Capacity",
         ["warn_cell_voltage"] = "Warn Cell Voltage",
         ["cell_count"] = "Cell Count",
-        ["consumption_warning_percentage"] = "Consumption Warning %"
+        ["consumption_warning_percentage"] = "Consumption Warning %",
+        ["timer"] = "Flight Time Alarm"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Gain",

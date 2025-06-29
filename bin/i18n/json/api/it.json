@@ -256,6 +256,11 @@
       "translation": "Disabilitato",
       "needs_translation": "false"
     },
+    "tbl_auto": {
+      "english": "Auto",
+      "translation": "Auto",
+      "needs_translation": "true"
+    },
     "starting_torque": {
       "english": "Starting torque for the motor",
       "translation": "Coppia iniziale per il motore",
@@ -962,6 +967,13 @@
       "english": "Reverse",
       "translation": "Inverti",
       "needs_translation": "false"
+    }
+  },
+  "PILOT_CONFIG": {
+    "model_param1_value": {
+      "english": "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached.",
+      "translation": "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached.",
+      "needs_translation": "true"
     }
   },
   "BATTERY_CONFIG": {

@@ -93,6 +93,7 @@ return {
       ["tbl_alwayson"] = "Attivo",
       ["throttle_min"] = "Valore Minimo gas",
       ["tbl_disabled"] = "Disabilitato",
+      ["tbl_auto"] = "Auto",
       ["starting_torque"] = "Coppia iniziale per il motore",
       ["cell_count"] = "Numero di celle nella batteria",
       ["motor_erpm_max"] = "RPM Massimi",
@@ -244,6 +245,9 @@ return {
       ["tbl_autocalculate"] = "Auto Calcola",
       ["tbl_enabled"] = "Abilita",
       ["tbl_reverse"] = "Inverti"
+    },
+    ["PILOT_CONFIG"] = {
+      ["model_param1_value"] = "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached."
     },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "La tensione minima per cella prima che scatti l'allarme di bassa tensione.",
@@ -763,7 +767,8 @@ return {
         ["battery_capacity"] = "Capacita' Batteria",
         ["warn_cell_voltage"] = "Avviso tensione cella",
         ["cell_count"] = "Conto Celle",
-        ["consumption_warning_percentage"] = "Avviso Consumo %"
+        ["consumption_warning_percentage"] = "Avviso Consumo %",
+        ["timer"] = "Flight Time"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Guadagno",

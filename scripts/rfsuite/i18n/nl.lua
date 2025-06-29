@@ -93,6 +93,7 @@ return {
       ["tbl_alwayson"] = "Altijd Aan",
       ["throttle_min"] = "Minimale throttle waarde",
       ["tbl_disabled"] = "Uit",
+      ["tbl_auto"] = "Auto",
       ["starting_torque"] = "Start koppel voor de motor",
       ["cell_count"] = "Aantal cellen in de batterij",
       ["motor_erpm_max"] = "Maximale RPM",
@@ -244,6 +245,9 @@ return {
       ["tbl_autocalculate"] = "Auto Calculate",
       ["tbl_enabled"] = "Aan",
       ["tbl_reverse"] = "Omgekeerd"
+    },
+    ["PILOT_CONFIG"] = {
+      ["model_param1_value"] = "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached."
     },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "Het minimale voltage wanneer laag voltage alarm wordt getriggerd.",
@@ -763,7 +767,8 @@ return {
         ["battery_capacity"] = "Batterij Capaciteit",
         ["warn_cell_voltage"] = "Waarschuwing Cel Spanning",
         ["cell_count"] = "Aantal cellen",
-        ["consumption_warning_percentage"] = "Verbruik Waarschuwing %"
+        ["consumption_warning_percentage"] = "Verbruik Waarschuwing %",
+        ["timer"] = "Flight Time"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Gain",

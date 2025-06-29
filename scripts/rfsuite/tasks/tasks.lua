@@ -60,7 +60,7 @@ function tasks.findTasks()
     local taskPath, taskMetadata = "tasks/", {}
 
     for _, dir in pairs(system.listFiles(taskPath)) do
-        if not dir:match("%.%a+$") then
+        if dir ~= "." and dir ~= ".." and not dir:match("%.%a+$") then
             local initPath = taskPath .. dir .. "/init.lua"
             local func, err = compiler(initPath)
             if err then
@@ -163,8 +163,9 @@ function tasks.wakeup()
     local now = rfsuite.clock
 
     local function canRunTask(task)
+        local overdue = rfsuite.clock - task.last_run >= (task.interval * 20)
         return (not task.linkrequired or rfsuite.session.telemetryState) and
-            (task.name == "msp" or not rfsuite.app.triggers.mspBusy) and
+            (task.name == "msp" or overdue or not rfsuite.app.triggers.mspBusy) and
             (not task.simulatoronly or usingSimulator)
     end
 

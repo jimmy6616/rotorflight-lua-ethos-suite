@@ -93,6 +93,7 @@ return {
       ["tbl_alwayson"] = "Immer an",
       ["throttle_min"] = "Minimaler Gaswert",
       ["tbl_disabled"] = "Deaktiviert",
+      ["tbl_auto"] = "Auto",
       ["starting_torque"] = "Anlaufmoment fuer den Motor",
       ["cell_count"] = "Anzahl der Zellen in der Batterie",
       ["motor_erpm_max"] = "Maximale RPM",
@@ -244,6 +245,9 @@ return {
       ["tbl_autocalculate"] = "Automatische Berechnung",
       ["tbl_enabled"] = "Aktiviert",
       ["tbl_reverse"] = "Umgekehrt"
+    },
+    ["PILOT_CONFIG"] = {
+      ["model_param1_value"] = "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached."
     },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "Die minimale Spannung pro Zelle, bevor der Niederspannungsalarm ausgeloest wird.",
@@ -763,7 +767,8 @@ return {
         ["battery_capacity"] = "Batteriekapazitaet",
         ["warn_cell_voltage"] = "Warnung Zellenspannung",
         ["cell_count"] = "Zellenanzahl",
-        ["consumption_warning_percentage"] = "Verbrauchswarnung %"
+        ["consumption_warning_percentage"] = "Verbrauchswarnung %",
+        ["timer"] = "Flight Time"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Verstaerkung",
