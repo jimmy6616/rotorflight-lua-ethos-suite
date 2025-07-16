@@ -144,7 +144,7 @@ app.init: Initialization function.
 app.guiIsRunning: Boolean indicating if the GUI is running.
 app.menuLastSelected: Table to store the last selected menu item.
 app.adjfunctions: Table to store adjustment functions.
-app.profileCheckScheduler: Scheduler for profile checks using rfsuite.clock.
+app.profileCheckScheduler: Scheduler for profile checks using os.clock().
 app.offLineMode : Boolean indicating if the app is in offline mode.
 ]]
 app.sensors = {}
@@ -173,7 +173,7 @@ app.sensor = {}
 app.init = nil
 app.guiIsRunning = false
 app.adjfunctions = nil
-app.profileCheckScheduler = rfsuite.clock
+app.profileCheckScheduler = os.clock()
 app.offlineMode = false
 
 
@@ -214,7 +214,7 @@ app.dialogs.progress = false
 app.dialogs.progressDisplay = false
 app.dialogs.progressWatchDog = nil
 app.dialogs.progressCounter = 0
-app.dialogs.progressRateLimit = rfsuite.clock
+app.dialogs.progressRateLimit = os.clock()
 app.dialogs.progressRate = 0.25 
 
 --[[
@@ -232,7 +232,7 @@ app.dialogs.progressESC = false
 app.dialogs.progressDisplayEsc = false
 app.dialogs.progressWatchDogESC = nil
 app.dialogs.progressCounterESC = 0
-app.dialogs.progressESCRateLimit = rfsuite.clock
+app.dialogs.progressESCRateLimit = os.clock()
 app.dialogs.progressESCRate = 2.5 
 
 --[[
@@ -250,7 +250,7 @@ app.dialogs.save = false
 app.dialogs.saveDisplay = false
 app.dialogs.saveWatchDog = nil
 app.dialogs.saveProgressCounter = 0
-app.dialogs.saveRateLimit = rfsuite.clock
+app.dialogs.saveRateLimit = os.clock()
 app.dialogs.saveRate = 0.25
 
 --[[
@@ -266,7 +266,7 @@ app.dialogs.saveRate = 0.25
 app.dialogs.nolink = false
 app.dialogs.nolinkDisplay = false
 app.dialogs.nolinkValueCounter = 0
-app.dialogs.nolinkRateLimit = rfsuite.clock
+app.dialogs.nolinkRateLimit = os.clock()
 app.dialogs.nolinkRate = 0.25
 
 --[[
@@ -327,9 +327,11 @@ local mspEepromWrite = {
         end
     end,
     errorHandler = function(self)
-        app.triggers.closeSave = true
-        app.audio.playSaveArmed = true
-        app.triggers.showSaveArmedWarning = true
+        if rfsuite.session.isArmed then
+          app.triggers.closeSave = true
+          app.audio.playSaveArmed = true
+          app.triggers.showSaveArmedWarning = true
+        end  
     end,
     simulatorResponse = {}
 }
@@ -355,6 +357,7 @@ function app.settingsSaved()
         -- don't write again if we're already responding to earlier page.write()s
         if app.pageState ~= app.pageStatus.eepromWrite then
             app.pageState = app.pageStatus.eepromWrite
+            app.triggers.closeSave = true
             rfsuite.tasks.msp.mspQueue:add(mspEepromWrite)
         end
     elseif app.pageState ~= app.pageStatus.eepromWrite then
@@ -377,7 +380,7 @@ local function saveSettings()
     if app.pageState == app.pageStatus.saving then return end
 
     app.pageState = app.pageStatus.saving
-    app.saveTS = rfsuite.clock
+    app.saveTS = os.clock()
 
     -- we handle saving 100% different for multi mspapi
     log("Saving data", "debug")
@@ -393,7 +396,7 @@ local function saveSettings()
     if app.Page.preSave then app.Page.preSave(app.Page) end
 
     for apiID, apiNAME in ipairs(apiList) do
-        log("Saving data for API: " .. apiNAME, "info")
+        log("Saving data for API: " .. apiNAME, "debug")
 
         local payloadData = values[apiNAME]
         local payloadStructure = mspapi.structure[apiNAME]
@@ -406,7 +409,7 @@ local function saveSettings()
         )
         API.setCompleteHandler(function(self, buf)
             completedRequests = completedRequests + 1
-            log("API " .. apiNAME .. " write complete", "info")
+            log("API " .. apiNAME .. " write complete", "debug")
 
             -- Check if this is the last completed request
             if completedRequests == totalRequests then
@@ -496,6 +499,7 @@ end
     5. Logs debug information and handles cases where fields or values are missing.
 --]]
 function app.mspApiUpdateFormAttributes(values, structure)
+
     -- Ensure app.Page and its mspapi.formdata exist
     if not (app.Page.apidata.formdata and app.Page.apidata.api and rfsuite.app.Page.fields) then
         log("app.Page.apidata.formdata or its components are nil", "debug")
@@ -947,13 +951,14 @@ app._uiTasks = {
   -- 2. Close Progress Loader
   function()
     if not app.triggers.closeProgressLoader then return end
-    local p, q = app.dialogs.progressCounter, rfsuite.tasks.msp.mspQueue
-    if p >= 90 then p = p + 10 else p = p + 25 end
+    local p = app.dialogs.progressCounter
+    local q = rfsuite.tasks.msp and rfsuite.tasks.msp.mspQueue
+    if p >= 90 then p = p + 10 else p = p + 15 end
     app.dialogs.progressCounter = p
     if app.dialogs.progress then
       app.ui.progressDisplayValue(p)
     end
-    if p >= 101 and q:isProcessed() then
+    if p >= 101 and q and q:isProcessed() then
       app.dialogs.progressWatchDog = nil
       app.dialogs.progressDisplay  = false
       app.ui.progressDisplayClose()
@@ -1008,7 +1013,7 @@ app._uiTasks = {
            and app.uiState == app.uiStatus.pages and not app.triggers.isSaving
            and not app.dialogs.saveDisplay and not app.dialogs.progressDisplay
            and rfsuite.tasks.msp.mspQueue:isProcessed()) then return end
-    local now = rfsuite.clock;
+    local now = os.clock();
     local interval = (rfsuite.tasks.telemetry.getSensorSource("pid_profile") and rfsuite.tasks.telemetry.getSensorSource("rate_profile"))
                      and 0.1 or 1.5
     if (now - (app.profileCheckScheduler or 0)) >= interval then
@@ -1037,14 +1042,14 @@ app._uiTasks = {
       local apiV = tostring(rfsuite.session.apiVersion)
 
       if not rfsuite.session.isConnected then
-        for i in pairs(rfsuite.app.formFields) do
-          if not app.MainMenu.pages[i].offline then
+        for i,v in pairs(rfsuite.app.formFieldsOffline) do
+          if v == false then
             rfsuite.app.formFields[i]:enable(false)
           end
         end
       elseif rfsuite.session.apiVersion and utils.stringInArray(rfsuite.config.supportedMspApiVersion, apiV) then
         app.offlineMode = false
-        for i in pairs(rfsuite.app.formFields) do
+        for i in pairs(rfsuite.app.formFieldsOffline) do
           rfsuite.app.formFields[i]:enable(true)
         end
       end
@@ -1104,8 +1109,7 @@ app._uiTasks = {
   function()
     if not app.dialogs.saveDisplay or not app.dialogs.saveWatchDog then return end
     local timeout = tonumber(rfsuite.tasks.msp.protocol.saveTimeout + 5)
-    if (rfsuite.clock - app.dialogs.saveWatchDog) > timeout
-       or (app.dialogs.saveProgressCounter > 120 and rfsuite.tasks.msp.mspQueue:isProcessed()) then
+    if (os.clock() - app.dialogs.saveWatchDog) > timeout or (app.dialogs.saveProgressCounter > 120 and rfsuite.tasks.msp.mspQueue:isProcessed()) then
       app.audio.playTimeout = true
       app.ui.progressDisplaySaveMessage(i18n("app.error_timed_out"))
       app.ui.progressDisplaySaveCloseAllowed(true)
@@ -1123,7 +1127,7 @@ app._uiTasks = {
     if not app.dialogs.progressDisplay or not app.dialogs.progressWatchDog then return end
     app.dialogs.progressCounter = app.dialogs.progressCounter + (app.Page and app.Page.progressCounter or 1.5)
     app.ui.progressDisplayValue(app.dialogs.progressCounter)
-    if (rfsuite.clock - app.dialogs.progressWatchDog) > tonumber(rfsuite.tasks.msp.protocol.pageReqTimeout) then
+    if (os.clock() - app.dialogs.progressWatchDog) > tonumber(rfsuite.tasks.msp.protocol.pageReqTimeout) then
       app.audio.playTimeout = true
       app.ui.progressDisplayMessage(i18n("app.error_timed_out"))
       app.ui.progressDisplayCloseAllowed(true)
@@ -1304,11 +1308,6 @@ app._taskAccumulator    = 0   -- desired throughput percentage of total tasks pe
 app._uiTaskPercent      = 80  -- e.g., 80% of tasks each tick
 function app.wakeup()
 
-  -- ensure we have a clock if background tasks are not active
-  if not rfsuite.tasks.active() then
-    rfsuite.clock = os.clock()  
-  end
-
   -- mark gui as active
   app.guiIsRunning = true
 
@@ -1343,7 +1342,7 @@ function app.create_logtool()
     config.environment = system.getVersion()
     config.ethosRunningVersion = {config.environment.major, config.environment.minor, config.environment.revision}
 
-    rfsuite.session.lcdWidth, rfsuite.session.lcdHeight = utils.getWindowSize()
+    rfsuite.app.lcdWidth, rfsuite.app.lcdHeight = utils.getWindowSize()
     app.radio = assert(compile("app/radios.lua"))()
 
     app.uiState = app.uiStatus.init
@@ -1376,7 +1375,7 @@ function app.create()
     config.environment = system.getVersion()
     config.ethosRunningVersion = {config.environment.major, config.environment.minor, config.environment.revision}
 
-    rfsuite.session.lcdWidth, rfsuite.session.lcdHeight = utils.getWindowSize()
+    rfsuite.app.lcdWidth, rfsuite.app.lcdHeight = utils.getWindowSize()
     app.radio = assert(compile("app/radios.lua"))()
 
     app.uiState = app.uiStatus.init
@@ -1434,6 +1433,12 @@ function app.event(widget, category, value, x, y)
         end
     end
 
+    -- catch exit from sub menu
+    if app.uiState == app.uiStatus.mainMenu and rfsuite.app.lastMenu ~= nil and value == 35 then
+        rfsuite.app.ui.openMainMenu()
+        return true
+    end
+
     -- generic events handler for most pages
     if app.uiState == app.uiStatus.pages then
 
@@ -1443,7 +1448,11 @@ function app.event(widget, category, value, x, y)
             if app.dialogs.progressDisplay then app.ui.progressDisplayClose() end
             if app.dialogs.saveDisplay then app.ui.progressDisplaySaveClose() end
             if app.Page.onNavMenu then app.Page.onNavMenu(app.Page) end
-            app.ui.openMainMenu()
+            if  rfsuite.app.lastMenu == nil then
+                rfsuite.app.ui.openMainMenu()
+            else
+                rfsuite.app.ui.openMainMenuSub(rfsuite.app.lastMenu)
+            end
             return true
         end
 
@@ -1474,6 +1483,9 @@ function app.event(widget, category, value, x, y)
          return true
     end
 
+
+
+    
     return false
 end
 
@@ -1507,9 +1519,9 @@ function app.close()
         app.Page.close()
     end
 
-    if app.dialogs.progress then app.ui.progressDisplayClose() end
-    if app.dialogs.save then app.ui.progressDisplaySaveClose() end
-    if app.dialogs.noLink then app.ui.progressNolinkDisplayClose() end
+    if app.dialogs.progress and app.ui then app.ui.progressDisplayClose() end
+    if app.dialogs.save and app.ui then app.ui.progressDisplaySaveClose() end
+    if app.dialogs.noLink and app.ui then app.ui.progressNolinkDisplayClose() end
 
 
     -- Reset configuration and compiler flags

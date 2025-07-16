@@ -80,7 +80,11 @@ local function openPage(pidx, title, script)
 
             if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then rfsuite.app.Page.onNavMenu(rfsuite.app.Page) end
 
-            rfsuite.app.ui.openMainMenu()
+            if  rfsuite.app.lastMenu == nil then
+                rfsuite.app.ui.openMainMenu()
+            else
+                rfsuite.app.ui.openMainMenuSub(rfsuite.app.lastMenu)
+            end
         end
     })
     rfsuite.app.formNavigationFields['menu']:focus()
@@ -94,7 +98,7 @@ local function openPage(pidx, title, script)
     -- TEXT ICONS
     if rfsuite.preferences.general.iconsize == 0 then
         padding = rfsuite.app.radio.buttonPaddingSmall
-        buttonW = (rfsuite.session.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
+        buttonW = (rfsuite.app.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
         buttonH = rfsuite.app.radio.navbuttonHeight
         numPerRow = rfsuite.app.radio.buttonsPerRow
     end

@@ -26,7 +26,7 @@ local lastFlightMode = nil
 -- Sets the base lifetime from model preferences, resets session and lifetime counters,
 -- and marks the flight as not counted.
 function timer.reset()
-    rfsuite.utils.log("Resetting flight timers", "info")
+    --rfsuite.utils.log("Resetting flight timers", "info")
     lastFlightMode = nil
 
     local timerSession = {}
@@ -88,6 +88,10 @@ local function finalizeFlightSegment(now)
     timerSession.baseLifetime = timerSession.baseLifetime + segment
     timerSession.lifetime = timerSession.baseLifetime
 
+    -- Only update INI for totalflighttime at the end of flight
+    if prefs then
+        rfsuite.ini.setvalue(prefs, "general", "totalflighttime", timerSession.baseLifetime)
+    end
     timer.save()
 end
 
@@ -130,10 +134,6 @@ function timer.wakeup()
 
         local computedLifetime = (timerSession.baseLifetime or 0) + currentSegment
         timerSession.lifetime = computedLifetime
-
-        if prefs then
-            rfsuite.ini.setvalue(prefs, "general", "totalflighttime", computedLifetime)
-        end
 
         if timerSession.live >= 25 and not rfsuite.session.flightCounted then
             rfsuite.session.flightCounted = true

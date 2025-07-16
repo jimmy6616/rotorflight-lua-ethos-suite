@@ -1,15 +1,12 @@
-local settings = {}
 local i18n = rfsuite.i18n.get
 local enableWakeup = false
-local prevConnectedState = nil
+
+-- Local config table for in-memory edits
+local config = {}
 
 local function openPage(pageIdx, title, script)
     enableWakeup = true
     if not rfsuite.app.navButtons then rfsuite.app.navButtons = {} end
-
-    -- Determine connection state FIRST
-    local connected = rfsuite.session.isConnected and rfsuite.session.mcu_id and rfsuite.preferences
-    rfsuite.app.navButtons.save = connected and true or false
     rfsuite.app.triggers.closeProgressLoader = true
 
     form.clear()
@@ -22,15 +19,18 @@ local function openPage(pageIdx, title, script)
         i18n("app.modules.settings.name") .. " / " .. i18n("app.modules.settings.audio") .. " / " .. i18n("app.modules.settings.txt_audio_timer")
     )
 
-    rfsuite.session.formLineCnt = 0
+    rfsuite.app.formLineCnt = 0
     local formFieldCount = 0
 
-    if not rfsuite.preferences.timer then rfsuite.preferences.timer = {} end
-    settings = rfsuite.preferences.timer
+    -- Prepare working config as a shallow copy of timer preferences
+    local saved = rfsuite.preferences.timer or {}
+    for k, v in pairs(saved) do
+        config[k] = v
+    end
 
     local intervalChoices = {
         { "10s", 10 },
-        { "20s", 20 },
+        { "15s", 15 },
         { "30s", 30 }
     }
     local periodChoices = {
@@ -43,54 +43,54 @@ local function openPage(pageIdx, title, script)
 
     -- Audio Alerting On/Off
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine("Timer Alerting")
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(i18n("app.modules.settings.timer_alerting"))
     rfsuite.app.formFields[formFieldCount] = form.addBooleanField(
-        rfsuite.app.formLines[rfsuite.session.formLineCnt], nil,
-        function() return settings.timeraudioenable or false end,
+        rfsuite.app.formLines[rfsuite.app.formLineCnt], nil,
+        function() return config.timeraudioenable or false end,
         function(newValue)
-            settings.timeraudioenable = newValue
+            config.timeraudioenable = newValue
             rfsuite.app.formFields[idxChoice]:enable(newValue)
             rfsuite.app.formFields[idxPre]:enable(newValue)
             rfsuite.app.formFields[idxPost]:enable(newValue)
-            rfsuite.app.formFields[idxPrePeriod]:enable(newValue and (settings.prealerton or false))
-            rfsuite.app.formFields[idxPreInterval]:enable(newValue and (settings.prealerton or false))
-            rfsuite.app.formFields[idxPostPeriod]:enable(newValue and (settings.postalerton or false))
-            rfsuite.app.formFields[idxPostInterval]:enable(newValue and (settings.postalerton or false))
+            rfsuite.app.formFields[idxPrePeriod]:enable(newValue and (config.prealerton or false))
+            rfsuite.app.formFields[idxPreInterval]:enable(newValue and (config.prealerton or false))
+            rfsuite.app.formFields[idxPostPeriod]:enable(newValue and (config.postalerton or false))
+            rfsuite.app.formFields[idxPostInterval]:enable(newValue and (config.postalerton or false))
         end
     )
     idxAudio = formFieldCount
 
     -- Timer Elapsed Alert Mode (Choice)
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine("Timer Elapsed Alert")
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(i18n("app.modules.settings.timer_elapsed_alert_mode"))
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
-        rfsuite.app.formLines[rfsuite.session.formLineCnt], nil,
+        rfsuite.app.formLines[rfsuite.app.formLineCnt], nil,
         {
             { "Beep", 0 },
             { "Multi Beep", 1 },
             { "Timer Elapsed", 2 },
             { "Timer Seconds", 3 },
         },
-        function() return settings.elapsedalertmode or 0 end,
-        function(newValue) settings.elapsedalertmode = newValue end
+        function() return config.elapsedalertmode or 0 end,
+        function(newValue) config.elapsedalertmode = newValue end
     )
     idxChoice = formFieldCount
 
     -- Pre-timer Alert Options Panel
-    local prePanel = form.addExpansionPanel("Pre-timer Alert Options")
-    prePanel:open(settings.prealerton or false)
+    local prePanel = form.addExpansionPanel(i18n("app.modules.settings.timer_prealert_options"))
+    prePanel:open(config.prealerton or false)
 
     -- Pre-timer Alert On/Off
     formFieldCount = formFieldCount + 1
     idxPre = formFieldCount
     rfsuite.app.formFields[formFieldCount] = form.addBooleanField(
-        prePanel:addLine("Pre-timer Alert"), nil,
-        function() return settings.prealerton or false end,
+        prePanel:addLine(i18n("app.modules.settings.timer_prealert")), nil,
+        function() return config.prealerton or false end,
         function(newValue)
-            settings.prealerton = newValue
-            local audioEnabled = settings.timeraudioenable or false
+            config.prealerton = newValue
+            local audioEnabled = config.timeraudioenable or false
             rfsuite.app.formFields[idxPrePeriod]:enable(audioEnabled and newValue)
             rfsuite.app.formFields[idxPreInterval]:enable(audioEnabled and newValue)
         end
@@ -100,12 +100,12 @@ local function openPage(pageIdx, title, script)
     formFieldCount = formFieldCount + 1
     idxPrePeriod = formFieldCount
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
-        prePanel:addLine("Alert Period"), nil,
+        prePanel:addLine(i18n("app.modules.settings.timer_alert_period")), nil,
         periodChoices,
-        function() return settings.prealertperiod or 30 end,
-        function(newValue) settings.prealertperiod = newValue end
+        function() return config.prealertperiod or 30 end,
+        function(newValue) config.prealertperiod = newValue end
     )
-    rfsuite.app.formFields[formFieldCount]:enable((settings.timeraudioenable or false) and (settings.prealerton or false))
+    rfsuite.app.formFields[formFieldCount]:enable((config.timeraudioenable or false) and (config.prealerton or false))
 
     -- Pre-timer Alert Interval (Choice)
     formFieldCount = formFieldCount + 1
@@ -113,24 +113,24 @@ local function openPage(pageIdx, title, script)
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
         prePanel:addLine("Alert Interval"), nil,
         intervalChoices,
-        function() return settings.prealertinterval or 10 end,
-        function(newValue) settings.prealertinterval = newValue end
+        function() return config.prealertinterval or 10 end,
+        function(newValue) config.prealertinterval = newValue end
     )
-    rfsuite.app.formFields[formFieldCount]:enable((settings.timeraudioenable or false) and (settings.prealerton or false))
+    rfsuite.app.formFields[formFieldCount]:enable((config.timeraudioenable or false) and (config.prealerton or false))
 
     -- Post-timer Alert Options Panel
-    local postPanel = form.addExpansionPanel("Post-timer Alert Options")
-    postPanel:open(settings.postalerton or false)
+    local postPanel = form.addExpansionPanel(i18n("app.modules.settings.timer_postalert_options"))
+    postPanel:open(config.postalerton or false)
 
     -- Post-timer Alert On/Off
     formFieldCount = formFieldCount + 1
     idxPost = formFieldCount
     rfsuite.app.formFields[formFieldCount] = form.addBooleanField(
-        postPanel:addLine("Post-timer Alert"), nil,
-        function() return settings.postalerton or false end,
+        postPanel:addLine(i18n("app.modules.settings.timer_postalert")), nil,
+        function() return config.postalerton or false end,
         function(newValue)
-            settings.postalerton = newValue
-            local audioEnabled = settings.timeraudioenable or false
+            config.postalerton = newValue
+            local audioEnabled = config.timeraudioenable or false
             rfsuite.app.formFields[idxPostPeriod]:enable(audioEnabled and newValue)
             rfsuite.app.formFields[idxPostInterval]:enable(audioEnabled and newValue)
         end
@@ -140,40 +140,33 @@ local function openPage(pageIdx, title, script)
     formFieldCount = formFieldCount + 1
     idxPostPeriod = formFieldCount
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
-        postPanel:addLine("Alert Period"), nil,
+        postPanel:addLine(i18n("app.modules.settings.timer_alert_period")), nil,
         periodChoices,
-        function() return settings.postalertperiod or 60 end,
-        function(newValue) settings.postalertperiod = newValue end
+        function() return config.postalertperiod or 60 end,
+        function(newValue) config.postalertperiod = newValue end
     )
-    rfsuite.app.formFields[formFieldCount]:enable((settings.timeraudioenable or false) and (settings.postalerton or false))
+    rfsuite.app.formFields[formFieldCount]:enable((config.timeraudioenable or false) and (config.postalerton or false))
 
     -- Post-timer Alert Interval (Choice)
     formFieldCount = formFieldCount + 1
     idxPostInterval = formFieldCount
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
-        postPanel:addLine("Alert Interval"), nil,
+        postPanel:addLine(i18n("app.modules.settings.timer_postalert_interval")), nil,
         intervalChoices,
-        function() return settings.postalertinterval or 10 end,
-        function(newValue) settings.postalertinterval = newValue end
+        function() return config.postalertinterval or 10 end,
+        function(newValue) config.postalertinterval = newValue end
     )
-    rfsuite.app.formFields[formFieldCount]:enable((settings.timeraudioenable or false) and (settings.postalerton or false))
+    rfsuite.app.formFields[formFieldCount]:enable((config.timeraudioenable or false) and (config.postalerton or false))
 
-    -- Grey out everything if not connected, and reliably hide Save
-    if not connected then
-        for i, field in ipairs(rfsuite.app.formFields) do
-            if field and field.enable then field:enable(false) end
-        end
-        rfsuite.app.navButtons.save = false
-    else
-        rfsuite.app.formFields[idxChoice]:enable(settings.timeraudioenable or false)
-        rfsuite.app.formFields[idxPre]:enable(settings.timeraudioenable or false)
-        rfsuite.app.formFields[idxPrePeriod]:enable((settings.timeraudioenable or false) and (settings.prealerton or false))
-        rfsuite.app.formFields[idxPreInterval]:enable((settings.timeraudioenable or false) and (settings.prealerton or false))
-        rfsuite.app.formFields[idxPost]:enable(settings.timeraudioenable or false)
-        rfsuite.app.formFields[idxPostPeriod]:enable((settings.timeraudioenable or false) and (settings.postalerton or false))
-        rfsuite.app.formFields[idxPostInterval]:enable((settings.timeraudioenable or false) and (settings.postalerton or false))
-        rfsuite.app.navButtons.save = true
-    end
+    -- Set initial enabled state based on current config
+    rfsuite.app.formFields[idxChoice]:enable(config.timeraudioenable or false)
+    rfsuite.app.formFields[idxPre]:enable(config.timeraudioenable or false)
+    rfsuite.app.formFields[idxPrePeriod]:enable((config.timeraudioenable or false) and (config.prealerton or false))
+    rfsuite.app.formFields[idxPreInterval]:enable((config.timeraudioenable or false) and (config.prealerton or false))
+    rfsuite.app.formFields[idxPost]:enable(config.timeraudioenable or false)
+    rfsuite.app.formFields[idxPostPeriod]:enable((config.timeraudioenable or false) and (config.postalerton or false))
+    rfsuite.app.formFields[idxPostInterval]:enable((config.timeraudioenable or false) and (config.postalerton or false))
+    rfsuite.app.navButtons.save = true
 end
 
 local function onSaveMenu()
@@ -183,7 +176,7 @@ local function onSaveMenu()
             action = function()
                 local msg = i18n("app.modules.profile_select.save_prompt_local")
                 rfsuite.app.ui.progressDisplaySave(msg:gsub("%?$", "."))
-                for key, value in pairs(settings) do
+                for key, value in pairs(config) do
                     rfsuite.preferences.timer[key] = value
                 end
                 rfsuite.ini.save_ini_file(
@@ -214,7 +207,7 @@ local function onSaveMenu()
 end
 
 local function event(widget, category, value, x, y)
-    if category == EVT_CLOSE and (value == 0 or value == 35) then
+    if category == EVT_CLOSE and value == 0 or value == 35 then
         rfsuite.app.ui.openPage(
             pageIdx,
             i18n("app.modules.settings.name"),
@@ -224,24 +217,9 @@ local function event(widget, category, value, x, y)
     end
 end
 
-local function wakeup()
-    if not enableWakeup then return end
-
-    local connected = rfsuite.session.isConnected and rfsuite.session.mcu_id and rfsuite.preferences
-    if connected ~= prevConnectedState then
-        -- Set enable/disable for all fields
-        for i, field in ipairs(rfsuite.app.formFields) do
-            if field and field.enable then field:enable(connected) end
-        end
-        rfsuite.app.navButtons.save = connected and true or false
-        prevConnectedState = connected
-    end
-end
-
 return {
     event      = event,
     openPage   = openPage,
-    wakeup     = wakeup,
     onNavMenu  = onNavMenu,
     onSaveMenu = onSaveMenu,
     navButtons = {
@@ -251,4 +229,5 @@ return {
         tool   = false,
         help   = false,
     },
+    API = {},
 }

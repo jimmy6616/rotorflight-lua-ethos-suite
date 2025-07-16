@@ -9,11 +9,12 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * Note: Some icons have been sourced from https://www.flaticon.com/
 ]]--
+
 
 local arg = { ... }
 local config = arg[1]
@@ -22,21 +23,131 @@ local telemetry = {}
 
 local lastEventTimes = {}
 local lastValues     = {}
-local lastPlayTime   = {}
+local lastAlertState = {}
+local rollingSamples = {}
 
-local userpref = rfsuite.preferences
-local enabledEvents = (userpref and userpref.events) or {}
+local userpref   = rfsuite.preferences
+local eventPrefs = (userpref and userpref.events) or {}
+
+-- Smartfuel retained as-is, already includes its own timing logic
+local lastSmartfuelAnnounced = nil
+local lastLowFuelAnnounced   = false
+local lastLowFuelRepeat      = 0
+local lastLowFuelRepeatCount = 0
+
+local function smartfuelCallout(value)
+    local smartfuelcallout = tonumber(eventPrefs.smartfuelcallout) or 0
+    local thresholds = {}
+
+    -- Unify thresholds logic, including 0 as a special 'default' pattern: 100%, 10%
+    if smartfuelcallout == 0 then
+        for _, i in ipairs({100, 10}) do table.insert(thresholds, i) end
+    elseif smartfuelcallout == 10 then
+        for i = 100, 10, -10 do table.insert(thresholds, i) end
+    elseif smartfuelcallout == 25 then
+        for i = 100, 25, -25 do table.insert(thresholds, i) end
+    elseif smartfuelcallout == 50 then
+        for _, i in ipairs({100, 50}) do table.insert(thresholds, i) end
+    elseif smartfuelcallout == 20 then
+        for _, i in ipairs({100, 75, 50, 25, 20}) do table.insert(thresholds, i) end
+    else
+        table.insert(thresholds, smartfuelcallout)
+    end
+
+    -- 0% logic (repeats, haptic)
+    if value <= 0 then
+        local now = os.clock() or os.clock()
+        local repeats = tonumber(eventPrefs.smartfuelrepeats) or 1
+        local haptic = eventPrefs.smartfuelhaptic and true or false
+
+        if not lastLowFuelAnnounced then
+            rfsuite.utils.playFile("status", "alerts/lowfuel.wav")
+            if haptic then system.playHaptic(". . . .") end
+            lastLowFuelRepeat = now
+            lastLowFuelRepeatCount = 1
+            lastLowFuelAnnounced = true
+        elseif lastLowFuelRepeatCount < repeats and (now - lastLowFuelRepeat) >= 10 then
+            rfsuite.utils.playFile("status", "alerts/lowfuel.wav")
+            if haptic then system.playHaptic(". . . .") end
+            lastLowFuelRepeat = now
+            lastLowFuelRepeatCount = lastLowFuelRepeatCount + 1
+        end
+        return
+    else
+        lastLowFuelAnnounced = false
+        lastLowFuelRepeat = 0
+        lastLowFuelRepeatCount = 0
+    end
+
+    -- On first connect, announce the actual % value
+    if lastSmartfuelAnnounced == nil then
+        rfsuite.utils.playFile("status", "alerts/fuel.wav")
+        system.playNumber(math.floor(value + 0.5), UNIT_PERCENT)
+        lastSmartfuelAnnounced = math.floor(value + 0.5)
+        return
+    end
+
+    local calloutValue = nil
+    -- Find the largest threshold less than or equal to value and not previously called out
+    for _, t in ipairs(thresholds) do
+        if value <= t and lastSmartfuelAnnounced > t then
+            calloutValue = t
+            break
+        end
+    end
+
+    if calloutValue then
+        rfsuite.utils.playFile("status", "alerts/fuel.wav")
+        system.playNumber(calloutValue, UNIT_PERCENT)
+        lastSmartfuelAnnounced = calloutValue
+    end
+end
+
+
+local function shouldAlert(key, interval)
+    local now = os.clock() or os.clock()
+    return (not lastAlertState[key]) or (now - (lastEventTimes[key] or 0)) >= interval
+end
+
+local function registerAlert(key, interval)
+    lastEventTimes[key] = os.clock() or os.clock()
+    lastAlertState[key] = true
+end
+
+local function updateRollingAverage(key, newValue, window)
+    rollingSamples[key] = rollingSamples[key] or {}
+    local samples = rollingSamples[key]
+    table.insert(samples, newValue)
+    if #samples > window then table.remove(samples, 1) end
+    local sum = 0
+    for _, v in ipairs(samples) do sum = sum + v end
+    return sum / #samples
+end
+
+--[[
+eventTable Configuration Options:
+
+Each entry in eventTable supports the following optional fields:
+
+- sensor     : (string) Name of the telemetry sensor to monitor.
+- event      : (function) Function called with (value, interval, window) when sensor updates.
+- interval   : (number) Minimum seconds between repeated alerts while condition persists.
+               If omitted or 0, alert may trigger on every update.
+- window     : (number) Number of recent samples to average before evaluating condition.
+               Used to suppress alerts from momentary fluctuations. Default is 1 (no averaging).
+- debounce   : (number) Minimum seconds between triggers based on value changes (non-threshold events).
+               Used for sensors like profiles or modes to suppress rapid changes.
+
+Only one of `interval` or `debounce` is typically used per entry.
+]]
 
 local eventTable = {
     {
         sensor = "armflags",
         event = function(value)
-            local armMap = {
-                [0] = "disarmed.wav",
-                [1] = "armed.wav",
-                [2] = "disarmed.wav",
-                [3] = "armed.wav",
-            }
+            local key = "armflags"
+            if value == lastValues[key] then return end
+            local armMap = {[0] = "disarmed.wav", [1] = "armed.wav", [2] = "disarmed.wav", [3] = "armed.wav"}
             local filename = armMap[math.floor(value)]
             if filename then
                 rfsuite.utils.playFile("events", "alerts/" .. filename)
@@ -45,126 +156,161 @@ local eventTable = {
     },
     {
         sensor = "voltage",
-        event = function(value)
+        interval = 10,
+        window = 5,
+        event = function(value, interval, window)
             local session = rfsuite.session
             if not session.batteryConfig then return end
 
-            local cellCount   = session.batteryConfig.batteryCellCount
+            local cellCount = session.batteryConfig.batteryCellCount
             local warnVoltage = session.batteryConfig.vbatwarningcellvoltage
-            local minVoltage  = session.batteryConfig.vbatmincellvoltage
-
-            local collective = session.rx.values['collective'] or 0
-            local aileron    = session.rx.values['aileron'] or 0
-            local elevator   = session.rx.values['elevator'] or 0
-            local rudder     = session.rx.values['rudder'] or 0
-
-            if not (cellCount and warnVoltage and minVoltage) then return end
+            local minVoltage = session.batteryConfig.vbatmincellvoltage
 
             local cellVoltage = value / cellCount
-            if cellVoltage >= 0 and cellVoltage < (minVoltage / 2) then return end
+            if cellVoltage < (minVoltage / 2) then return end
 
-            local suppressionPercent = userpref.general.gimbalsupression or 0.85
-            local suppressionLimit = suppressionPercent * 1024
+            local avgVoltage = updateRollingAverage("voltage", cellVoltage, window)
 
-            if math.abs(collective) > suppressionLimit or
-               math.abs(aileron) > suppressionLimit or
-               math.abs(elevator) > suppressionLimit or
-               math.abs(rudder) > suppressionLimit then
+            local collective = session.rx.values['collective'] or 0
+            local aileron = session.rx.values['aileron'] or 0
+            local elevator = session.rx.values['elevator'] or 0
+            local rudder = session.rx.values['rudder'] or 0
+
+            local suppression = (userpref.general.gimbalsupression or 0.95) * 1024
+            if math.abs(collective) > suppression or math.abs(aileron) > suppression or
+               math.abs(elevator) > suppression or math.abs(rudder) > suppression then
                 return
             end
 
-            if cellVoltage < warnVoltage then
+            local key = "voltage"
+            if avgVoltage < warnVoltage and shouldAlert(key, interval) then
                 rfsuite.utils.playFile("events", "alerts/lowvoltage.wav")
-            end
-        end,
-        interval = 10
-    },
-    {
-        sensor = "smartfuel",
-        event = function(value)
-            -- Play the alert every interval if fuel is 10% or below
-            if value and value <= 10 then
-                rfsuite.utils.playFile("events", "alerts/lowfuel.wav")
-            end
-        end,
-        interval = 10
-    },
-    {
-        sensor = "fuel",
-        event = function(value)
-            -- Play the alert every interval if fuel is 10% or below
-            if value and value <= 10 then
-                rfsuite.utils.playFile("events", "alerts/lowfuel.wav")
-            end
-        end,
-        interval = 10
-    },    
-    {
-        sensor = "governor",
-        event = function(value)
-            if not rfsuite.session.isArmed or rfsuite.session.governorMode == 0 then return end
-
-            local governorMap = {
-                [0] = "off.wav", [1] = "idle.wav", [2] = "spoolup.wav",
-                [3] = "recovery.wav", [4] = "active.wav", [5] = "thr-off.wav",
-                [6] = "lost-hs.wav", [7] = "autorot.wav", [8] = "bailout.wav",
-                [100] = "disabled.wav", [101] = "disarmed.wav"
-            }
-            local filename = governorMap[math.floor(value)]
-            if filename then
-                rfsuite.utils.playFile("events", "gov/" .. filename)
+                registerAlert(key, interval)
+            elseif avgVoltage >= warnVoltage then
+                lastAlertState[key] = false
             end
         end
     },
     {
-        sensor = "pid_profile",
+        sensor = "temp_esc",
+        interval = 10,
+        window = 5,
+        event = function(value, interval, window)
+            if not eventPrefs.temp_esc then return end
+            local escalertvalue = tonumber(eventPrefs.escalertvalue) or 90
+            local avgTemp = updateRollingAverage("temp_esc", value, window)
+            local key = "temp_esc"
+            if avgTemp >= escalertvalue and shouldAlert(key, interval) then
+                rfsuite.utils.playFile("events", "alerts/esctemp.wav")
+                system.playHaptic(". . . .")
+                registerAlert(key, interval)
+            elseif avgTemp < escalertvalue then
+                lastAlertState[key] = false
+            end
+        end
+    },
+    {
+        sensor = "bec_voltage",
+        interval = 10,
+        window = 5,
+        event = function(value, interval, window)
+            if not eventPrefs.bec_voltage then return end
+            if rfsuite.flightmode.current ~= "inflight" then
+                lastAlertState["bec_voltage"] = false
+                return
+            end
+            local becalertvalue = tonumber(eventPrefs.becalertvalue) or 6.5
+            local avgBEC = updateRollingAverage("bec_voltage", value, window)
+            local key = "bec_voltage"
+            if avgBEC < becalertvalue and shouldAlert(key, interval) then
+                rfsuite.utils.playFile("events", "alerts/becvolt.wav")
+                system.playHaptic(". . . .")
+                registerAlert(key, interval)
+            elseif avgBEC >= becalertvalue then
+                lastAlertState[key] = false
+            end
+        end
+    },
+    {
+        sensor = "smartfuel",
         event = function(value)
+            smartfuelCallout(value)
+        end
+    },
+    {
+        sensor = "governor",
+        event = function(value)
+            local key = "governor"
+            if value == lastValues[key] then return end
+            if not rfsuite.session.isArmed or rfsuite.session.governorMode == 0 then return end
+            local governorMap = {
+                [0] = "off.wav", [1] = "idle.wav", [2] = "spoolup.wav", [3] = "recovery.wav",
+                [4] = "active.wav", [5] = "thr-off.wav", [6] = "lost-hs.wav", [7] = "autorot.wav",
+                [8] = "bailout.wav", [100] = "disabled.wav", [101] = "disarmed.wav"
+            }
+            local filename = governorMap[math.floor(value)]
+            if filename then rfsuite.utils.playFile("events", "gov/" .. filename) end
+        end
+    },
+    {
+        sensor = "pid_profile",
+        debounce = 0.25,
+        event = function(value)
+            local key = "pid_profile"
+            if value == lastValues[key] then return end
             rfsuite.utils.playFile("events", "alerts/profile.wav")
             system.playNumber(math.floor(value))
-        end,
-        debounce = 0.25
+        end
     },
     {
         sensor = "rate_profile",
+        debounce = 0.25,
         event = function(value)
+            local key = "rate_profile"
+            if value == lastValues[key] then return end
             rfsuite.utils.playFile("events", "alerts/rates.wav")
             system.playNumber(math.floor(value))
-        end,
-        debounce = 0.25
+        end
     }
 }
 
 function telemetry.wakeup()
-    local now = rfsuite.clock
-
+    local now = os.clock()
     for _, item in ipairs(eventTable) do
         local key = item.sensor
-        if not enabledEvents[key] then goto continue end
+        local debounce = item.debounce or 0
+        local lastTime = lastEventTimes[key] or (now - debounce)
+        local lastVal = lastValues[key]
+
+        if not eventPrefs[key] then goto continue end
 
         local source = rfsuite.tasks.telemetry.getSensorSource(key)
         if not source then goto continue end
 
         local value = source:value()
-        if not value then goto continue end
+        if value == nil then goto continue end
 
-        local lastVal = lastValues[key]
-        if lastVal and value == lastVal then goto continue end
+        if (not lastVal or value ~= lastVal) or debounce == 0 or (now - lastTime) >= debounce then
+            item.event(value, item.interval or 0, item.window or 1)
+            lastEventTimes[key] = now
+        end
 
-        local lastTime = lastEventTimes[key] or 0
-        local debounce = item.debounce or 0
-        local interval = item.interval or 0
-
-        if debounce > 0 and (now - lastTime) < debounce then goto continue end
-        if interval > 0 and (now - lastTime) < interval then goto continue end
-
-        item.event(value)
         lastValues[key] = value
-        lastEventTimes[key] = now
-
         ::continue::
     end
 end
 
 telemetry.eventTable = eventTable
+
+function telemetry.reset()
+    lastSmartfuelAnnounced = nil
+    lastLowFuelAnnounced = false
+    lastLowFuelRepeat = 0
+    lastLowFuelRepeatCount = 0
+    lastEventTimes = {}
+    lastValues     = {}
+    lastAlertState = {}
+    rollingSamples = {}
+end
 
 return telemetry

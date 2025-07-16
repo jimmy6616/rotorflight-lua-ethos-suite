@@ -7,7 +7,7 @@ local triggerOverRideAll = false
 local triggerCenterChange = false
 local currentServoCenter
 local lastSetServoCenter
-local lastServoChangeTime = rfsuite.clock
+local lastServoChangeTime = os.clock()
 local servoIndex = rfsuite.currentServoIndex - 1
 local isSaving = false
 local enableWakeup = false
@@ -174,7 +174,7 @@ local function wakeup(self)
 
             currentServoCenter = configs[servoIndex]['mid']
 
-            local now = rfsuite.clock
+            local now = os.clock()
             local settleTime = 0.85
             if ((now - lastServoChangeTime) >= settleTime) and rfsuite.tasks.msp.mspQueue:isProcessed() then
                 if currentServoCenter ~= lastSetServoCenter then
@@ -324,7 +324,7 @@ local function openPage(idx, title, script, extra1)
 
     if rfsuite.app.Page.headerLine ~= nil then
         local headerLine = form.addLine("")
-        local headerLineText = form.addStaticText(headerLine, {x = 0, y = rfsuite.app.radio.linePaddingTop, w = rfsuite.session.lcdWidth, h = rfsuite.app.radio.navbuttonHeight}, rfsuite.app.Page.headerLine)
+        local headerLineText = form.addStaticText(headerLine, {x = 0, y = rfsuite.app.radio.linePaddingTop, w = rfsuite.app.lcdWidth, h = rfsuite.app.radio.navbuttonHeight}, rfsuite.app.Page.headerLine)
     end
 
     if rfsuite.session.servoOverride == true then rfsuite.app.formNavigationFields['save']:enable(false) end

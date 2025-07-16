@@ -2,9 +2,9 @@ local utils = assert(rfsuite.compiler.loadfile("SCRIPTS:/" .. rfsuite.config.bas
 local i18n = rfsuite.i18n.get
 local triggerOverRide = false
 local triggerOverRideAll = false
-local lastServoCountTime = rfsuite.clock
+local lastServoCountTime = os.clock()
 local enableWakeup = false
-local wakeupScheduler = rfsuite.clock
+local wakeupScheduler = os.clock()
 local currentDisplayMode
 
 local function getCleanModelName()
@@ -95,7 +95,7 @@ local function openPage(pidx, title, script, displaymode)
     local logs = utils.getLogs(logDir)   
 
 
-    local name = utils.resolveModelName(rfsuite.session.mcu_id or rfsuite.session.activeLogDir)
+    local name = utils.resolveModelName(rfsuite.session.mcu_id or rfsuite.app.activeLogDir)
     rfsuite.app.ui.fieldHeader("Logs / " .. name)
 
     local buttonW
@@ -105,7 +105,7 @@ local function openPage(pidx, title, script, displaymode)
 
    if rfsuite.preferences.general.iconsize == 0 then
         padding = rfsuite.app.radio.buttonPaddingSmall
-        buttonW = (rfsuite.session.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
+        buttonW = (rfsuite.app.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
         buttonH = rfsuite.app.radio.navbuttonHeight
         numPerRow = rfsuite.app.radio.buttonsPerRow
     end

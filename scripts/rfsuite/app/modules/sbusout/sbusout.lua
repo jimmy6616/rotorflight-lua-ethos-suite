@@ -2,9 +2,9 @@
 local SBUS_FUNCTIONMASK = 262144
 local triggerOverRide = false
 local triggerOverRideAll = false
-local lastServoCountTime = rfsuite.clock
+local lastServoCountTime = os.clock()
 local enableWakeup = false
-local wakeupScheduler = rfsuite.clock
+local wakeupScheduler = os.clock()
 local validSerialConfig = false
 local i18n = rfsuite.i18n.get
 local function openPage(pidx, title, script)
@@ -50,7 +50,7 @@ local function openPage(pidx, title, script)
     -- TEXT ICONS
     if rfsuite.preferences.general.iconsize == 0 then
         padding = rfsuite.app.radio.buttonPaddingSmall
-        buttonW = (rfsuite.session.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
+        buttonW = (rfsuite.app.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
         buttonH = rfsuite.app.radio.navbuttonHeight
         numPerRow = rfsuite.app.radio.buttonsPerRow
     end
@@ -157,7 +157,7 @@ local function wakeup()
 
     if enableWakeup == true and validSerialConfig == false then
 
-        local now = rfsuite.clock
+        local now = os.clock()
         if (now - wakeupScheduler) >= 0.5 then
             wakeupScheduler = now
 

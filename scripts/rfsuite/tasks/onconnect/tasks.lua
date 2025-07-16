@@ -81,7 +81,7 @@ function tasks.wakeup()
 
     if rfsuite.session.telemetryTypeChanged then
         rfsuite.utils.logRotorFlightBanner()
-        rfsuite.utils.log("Telemetry type changed, resetting tasks.", "info")
+        --rfsuite.utils.log("Telemetry type changed, resetting tasks.", "info")
         rfsuite.session.telemetryTypeChanged = false
         tasks.resetAllTasks()
         tasksLoaded = false
@@ -98,7 +98,7 @@ function tasks.wakeup()
         tasks.findTasks()
     end
 
-    local now = rfsuite.clock
+    local now = os.clock()
 
     -- Run each task
     for name, task in pairs(tasksList) do
@@ -137,9 +137,16 @@ function tasks.wakeup()
                 -- Signal the session connected immediately when high priority finishes
                 if level == "high" then
                     rfsuite.utils.playFileCommon("beep.wav")
-                    rfsuite.session.isConnected = true
                     rfsuite.flightmode.current = "preflight"
                     rfsuite.tasks.events.flightmode.reset()
+                    rfsuite.session.isConnectedHigh = true
+                    return
+                elseif level == "medium" then
+                    rfsuite.session.isConnectedMedium = true
+                    return
+                elseif level == "low" then 
+                    rfsuite.session.isConnectedLow = true    
+                    rfsuite.session.isConnected = true  
                     collectgarbage()
                     return
                 end

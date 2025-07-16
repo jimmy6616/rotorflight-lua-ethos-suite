@@ -205,7 +205,10 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
     end
 end
 
-function render.wakeup(box, telemetry)
+function render.wakeup(box)
+
+    local telemetry = rfsuite.tasks.telemetry
+    
     -- Value extraction
     local source = getParam(box, "source")
     local value, _, dynamicUnit
@@ -435,6 +438,13 @@ function render.paint(x, y, w, h, box)
         c.valuepaddingtop, c.valuepaddingbottom,
         nil
     )
+
+    -- Ensure paddings are numeric and defaulted
+    c.battadvpaddingleft    = tonumber(c.battadvpaddingleft)    or 0
+    c.battadvpaddingright   = tonumber(c.battadvpaddingright)   or 0
+    c.battadvpaddingtop     = tonumber(c.battadvpaddingtop)     or 0
+    c.battadvpaddingbottom  = tonumber(c.battadvpaddingbottom)  or 0
+    c.battadvgap            = tonumber(c.battadvgap)            or 5
 
     -- battadv info lines
     if c.battadv and box._batteryLines then

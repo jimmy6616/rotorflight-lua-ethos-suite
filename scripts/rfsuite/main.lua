@@ -21,9 +21,6 @@
 rfsuite = {}
 rfsuite.session = {}
 
--- initialise global clock
-rfsuite.clock = os.clock()
-
 -- initialise legacy font if not already set (ethos 1.6 vs 1.7)
 if not FONT_M then FONT_M = FONT_STD end
 
@@ -79,15 +76,19 @@ local userpref_defaults ={
         theme_postflight = "system/default",
     },
     events = {
-        armflags = true,
-        voltage = true,
-        fuel = false,
-        smartfuel = true,
-        governor = true,
-        pid_profile = true,
-        rate_profile = true,
-        adj_v = true,
-        adj_f = false,
+        armflags            = true,
+        voltage             = true,
+        governor            = true,
+        pid_profile         = true,
+        rate_profile        = true,
+        esc_temp            = false,
+        escalertvalue       = 90,
+        bec_voltage         = false,
+        becalertvalue       = 6.5,
+        smartfuel           = true,
+        smartfuelcallout    = 0,
+        smartfuelrepeats    = 1,
+        smartfuelhaptic     = false,
     },
     switches = {
     },

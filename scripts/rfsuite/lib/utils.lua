@@ -46,18 +46,15 @@ function utils.session()
     rfsuite.session.activeProfileLast = nil
     rfsuite.session.activeRateLast = nil
     rfsuite.session.servoCount = nil
+    rfsuite.session.resetMSP = nil
     rfsuite.session.servoOverride = nil
     rfsuite.session.clockSet = nil
-    rfsuite.session.lastLabel = nil
     rfsuite.session.tailMode = nil
     rfsuite.session.swashMode = nil
-    rfsuite.session.formLineCnt = nil
     rfsuite.session.rateProfile = nil
     rfsuite.session.governorMode = nil
     rfsuite.session.servoOverride = nil
     rfsuite.session.ethosRunningVersion = nil
-    rfsuite.session.lcdWidth = nil
-    rfsuite.session.lcdHeight = nil
     rfsuite.session.mspSignature = nil
     rfsuite.session.telemetryState = nil
     rfsuite.session.telemetryType = nil
@@ -68,6 +65,9 @@ function utils.session()
     rfsuite.session.lastMemoryUsage = nil
     rfsuite.session.mcu_id = nil
     rfsuite.session.isConnected = false
+    rfsuite.session.isConnectedHigh = false
+    rfsuite.session.isConnectedMedium = false
+    rfsuite.session.isConnectedLow = false
     rfsuite.session.isArmed = false
     rfsuite.session.bblSize = nil
     rfsuite.session.bblUsed = nil
@@ -84,7 +84,6 @@ function utils.session()
         -- consumptionWarningPercentage = nil
     rfsuite.session.modelPreferences = nil -- this is used to store the model preferences
     rfsuite.session.modelPreferencesFile = nil -- this is used to store the model preferences file path
-    rfsuite.session.dashboardEditingTheme = nil -- this is used to store the dashboard theme being edited in settings
     rfsuite.session.timer = {}
     rfsuite.session.timer.start = nil -- this is used to store the start time of the timer
     rfsuite.session.timer.live = nil -- this is used to store the live timer value while inflight
@@ -820,11 +819,11 @@ function utils.reportMemoryUsage(location)
         lastMemoryUsage = lastMemoryUsage / 1024  -- Convert last recorded memory to KB
         local difference = currentMemoryUsage - lastMemoryUsage
         if difference > 0 then
-            logMessage = string.format("[%s] Memory usage decreased by %.2f KB (Current: %.2f KB)", location, difference, currentMemoryUsage)
+            logMessage = string.format("[%s] Memory usage decreased by %.2f KB (Available: %.2f KB)", location, difference, currentMemoryUsage)
         elseif difference < 0 then
-            logMessage = string.format("[%s] Memory usage increased by %.2f KB (Current: %.2f KB)", location, -difference, currentMemoryUsage)
+            logMessage = string.format("[%s] Memory usage increased by %.2f KB (Available: %.2f KB)", location, -difference, currentMemoryUsage)
         else
-            logMessage = string.format("[%s] Memory usage unchanged (Current: %.2f KB)", location, currentMemoryUsage)
+            logMessage = string.format("[%s] Memory usage unchanged (Available: %.2f KB)", location, currentMemoryUsage)
         end
     else
         logMessage = string.format("[%s] Initial memory usage: %.2f KB", location, currentMemoryUsage)
@@ -860,5 +859,12 @@ function utils.splitVersionStringToNumbers(versionString)
     return parts
 end
 
+function utils.keys(tbl)
+    local keys = {}
+    for k in pairs(tbl) do
+        table.insert(keys, k)
+    end
+    return keys
+end
 
 return utils

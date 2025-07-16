@@ -1,7 +1,12 @@
-local settings = {}
 local i18n = rfsuite.i18n.get
+local enableWakeup = false
+
+-- Local config table for in-memory edits
+local config = {}
+
 local function openPage(pageIdx, title, script)
     enableWakeup = true
+    if not rfsuite.app.navButtons then rfsuite.app.navButtons = {} end
     rfsuite.app.triggers.closeProgressLoader = true
     form.clear()
 
@@ -12,55 +17,66 @@ local function openPage(pageIdx, title, script)
     rfsuite.app.ui.fieldHeader(
         i18n("app.modules.settings.name") .. " / " .. i18n("app.modules.settings.dashboard") .. " / " .. i18n("app.modules.settings.localizations")
     )
-    rfsuite.session.formLineCnt = 0
-
+    rfsuite.app.formLineCnt = 0
     local formFieldCount = 0
 
-    settings = rfsuite.preferences.localizations
+    -- Prepare working config as a shallow copy of localizations preferences
+    local saved = rfsuite.preferences.localizations or {}
+    for k, v in pairs(saved) do
+        config[k] = v
+    end
 
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine(i18n("app.modules.settings.temperature_unit"))
-    rfsuite.app.formFields[formFieldCount] = form.addChoiceField(rfsuite.app.formLines[rfsuite.session.formLineCnt], nil, 
-                                                        {{i18n("app.modules.settings.celcius"), 0}, {i18n("app.modules.settings.fahrenheit"), 1}}, 
-                                                        function() 
-                                                            if rfsuite.preferences and rfsuite.preferences.localizations then
-                                                                return settings.temperature_unit or 0
-                                                            end
-                                                        end, 
-                                                        function(newValue) 
-                                                            if rfsuite.preferences and rfsuite.preferences.localizations then
-                                                                settings.temperature_unit = newValue
-                                                            end    
-                                                        end) 
-            
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(i18n("app.modules.settings.temperature_unit"))
+    rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
+        rfsuite.app.formLines[rfsuite.app.formLineCnt],
+        nil,
+        {
+            {i18n("app.modules.settings.celcius"), 0},
+            {i18n("app.modules.settings.fahrenheit"), 1}
+        },
+        function()
+            return config.temperature_unit or 0
+        end,
+        function(newValue)
+            config.temperature_unit = newValue
+        end
+    )
+
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine(i18n("app.modules.settings.altitude_unit"))
-    rfsuite.app.formFields[formFieldCount] = form.addChoiceField(rfsuite.app.formLines[rfsuite.session.formLineCnt], nil, 
-                                                        {{i18n("app.modules.settings.meters"), 0}, {i18n("app.modules.settings.feet"), 1}}, 
-                                                        function() 
-                                                            if rfsuite.preferences and rfsuite.preferences.localizations then
-                                                                return settings.altitude_unit or 0
-                                                            end
-                                                        end, 
-                                                        function(newValue) 
-                                                            if rfsuite.preferences and rfsuite.preferences.localizations then
-                                                                settings.altitude_unit = newValue
-                                                            end    
-                                                        end) 
-              
-                                                  
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(i18n("app.modules.settings.altitude_unit"))
+    rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
+        rfsuite.app.formLines[rfsuite.app.formLineCnt],
+        nil,
+        {
+            {i18n("app.modules.settings.meters"), 0},
+            {i18n("app.modules.settings.feet"), 1}
+        },
+        function()
+            return config.altitude_unit or 0
+        end,
+        function(newValue)
+            config.altitude_unit = newValue
+        end
+    )
+
+    -- Always enable all fields and Save
+    for i, field in ipairs(rfsuite.app.formFields) do
+        if field and field.enable then field:enable(true) end
+    end
+    rfsuite.app.navButtons.save = true
 end
 
 local function onNavMenu()
     rfsuite.app.ui.progressDisplay()
-        rfsuite.app.ui.openPage(
-            pageIdx,
-            i18n("app.modules.settings.name"),
-            "settings/settings.lua"
-        )
-        return true
+    rfsuite.app.ui.openPage(
+        pageIdx,
+        i18n("app.modules.settings.name"),
+        "settings/settings.lua"
+    )
+    return true
 end
 
 local function onSaveMenu()
@@ -70,8 +86,8 @@ local function onSaveMenu()
             action = function()
                 local msg = i18n("app.modules.profile_select.save_prompt_local")
                 rfsuite.app.ui.progressDisplaySave(msg:gsub("%?$", "."))
-                for key, value in pairs(settings) do
-                    rfsuite.preferences.dashboard[key] = value
+                for key, value in pairs(config) do
+                    rfsuite.preferences.localizations[key] = value
                 end
                 rfsuite.ini.save_ini_file(
                     "SCRIPTS:/" .. rfsuite.config.preferences .. "/preferences.ini",
@@ -118,7 +134,6 @@ end
 return {
     event      = event,
     openPage   = openPage,
-    wakeup     = wakeup,
     onNavMenu  = onNavMenu,
     onSaveMenu = onSaveMenu,
     navButtons = {

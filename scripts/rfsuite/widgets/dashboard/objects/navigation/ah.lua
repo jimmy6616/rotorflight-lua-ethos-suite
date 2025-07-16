@@ -43,7 +43,13 @@ function render.dirty(box)
     return box._dirty == true 
 end
 
-function render.wakeup(box, telemetry)
+function render.wakeup(box)
+
+    local telemetry = rfsuite.tasks.telemetry
+    
+    if not telemetry then
+        return -- No telemetry available, cannot update
+    end
 
     local getSensor = telemetry.getSensor
     local pitch = getSensor("attpitch") or 0

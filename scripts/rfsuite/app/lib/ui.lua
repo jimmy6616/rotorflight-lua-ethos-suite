@@ -34,7 +34,7 @@ function ui.progressDisplay(title, message)
     message = message or i18n("app.msg_loading_from_fbl")
 
     rfsuite.app.dialogs.progressDisplay = true
-    rfsuite.app.dialogs.progressWatchDog = rfsuite.clock
+    rfsuite.app.dialogs.progressWatchDog = os.clock()
     rfsuite.app.dialogs.progress = form.openProgressDialog(title, message)
     rfsuite.app.dialogs.progressCounter = 0
 
@@ -66,7 +66,7 @@ end
 ]]
 function ui.progressDisplaySave(msg)
     rfsuite.app.dialogs.saveDisplay = true
-    rfsuite.app.dialogs.saveWatchDog = rfsuite.clock
+    rfsuite.app.dialogs.saveWatchDog = os.clock()
     if msg then
                  rfsuite.app.dialogs.save = form.openProgressDialog(i18n("app.msg_saving"),msg)   
     else
@@ -92,7 +92,7 @@ function ui.progressDisplayValue(value, message)
         return
     end
 
-    local now = rfsuite.clock
+    local now = os.clock()
     if (now - rfsuite.app.dialogs.progressRateLimit) >= rfsuite.app.dialogs.progressRate then
         rfsuite.app.dialogs.progressRateLimit = now
         rfsuite.app.dialogs.progress:value(value)
@@ -116,7 +116,7 @@ function ui.progressDisplaySaveValue(value, message)
         return
     end
 
-    local now = rfsuite.clock
+    local now = os.clock()
     if (now - rfsuite.app.dialogs.saveRateLimit) >= rfsuite.app.dialogs.saveRate then
         rfsuite.app.dialogs.saveRateLimit = now
         if rfsuite.app.dialogs.save then
@@ -216,7 +216,7 @@ function ui.progressDisplayNoLinkValue(value, message)
         return
     end
 
-    local now = rfsuite.clock
+    local now = os.clock()
     if (now - rfsuite.app.dialogs.nolinkRateLimit) >= rfsuite.app.dialogs.nolinkRate then
         rfsuite.app.dialogs.nolinkRateLimit = now
         rfsuite.app.dialogs.noLink:value(value)
@@ -293,41 +293,189 @@ function ui.progressDisplayIsActive()
            rfsuite.app.dialogs.badversionDisplay
 end
 
---[[
-    Function: ui.openMainMenu
-
-    Description:
-    Initializes and opens the main menu of the application. This function clears previous form fields, form lines, and graphics buttons, 
-    checks for the required Ethos version, and loads the main menu configuration from a specified file. It then sets up the main menu 
-    interface based on user preferences for icon size, and dynamically creates buttons for each section and page defined in the main menu 
-    configuration. The function also handles hiding sections and pages based on Ethos version, MSP version, and developer mode settings.
-
-    Parameters:
-    None
-
-    Returns:
-    None
-]]
+--- Opens and initializes the main menu UI.
+-- This function resets various UI and application state variables, prepares the button layout
+-- according to user preferences (such as icon size), and dynamically generates the main menu
+-- buttons based on the configuration defined in "app/modules/sections.lua".
+-- Each button is configured with its title, icon, and associated action, which may open a subpage
+-- or another menu section. The function also manages focus, disables buttons as needed, and
+-- ensures proper memory management.
+--
+-- Steps performed:
+-- 1. Resets form fields, menu state, and UI triggers.
+-- 2. Validates and sets the icon size preference.
+-- 3. Calculates button dimensions and layout based on icon size.
+-- 4. Loads menu configuration and iterates through menu items:
+--    - Adds buttons for each menu item, sets icons, and assigns press actions.
+--    - Handles new lines and system section headers.
+--    - Disables buttons if specified.
+--    - Sets focus to the last selected menu item.
+-- 5. Cleans up and reports memory usage.
+--
+-- Dependencies:
+-- - rfsuite.app, rfsuite.preferences, rfsuite.utils, rfsuite.compiler, lcd, form
+--
+-- No parameters.
+-- No return value.
 function ui.openMainMenu()
-
-
-
     rfsuite.app.formFields = {}
+    rfsuite.app.formFieldsOffline = {}
     rfsuite.app.formLines = {}
-    rfsuite.session.lastLabel = nil
+    rfsuite.app.lastLabel = nil
     rfsuite.app.isOfflinePage = false
+    if rfsuite.tasks.msp then
+        rfsuite.tasks.msp.protocol.mspIntervalOveride = nil
+    end
+    rfsuite.app.gfx_buttons["mainmenu"] = {}
+    rfsuite.app.lastMenu = nil
 
-    -- clear old icons
+    -- Clear old icons
     for i in pairs(rfsuite.app.gfx_buttons) do
         if i ~= "mainmenu" then
             rfsuite.app.gfx_buttons[i] = nil
         end
     end
 
-    -- hard exit on error
-    if not rfsuite.utils.ethosVersionAtLeast(config.ethosVersion) then
-        return
-    end    
+    rfsuite.app.triggers.isReady = false
+    rfsuite.app.uiState = rfsuite.app.uiStatus.mainMenu
+
+    form.clear()
+
+    rfsuite.app.lastIdx = idx
+    rfsuite.app.lastTitle = title
+    rfsuite.app.lastScript = script
+
+    ESC = {}
+
+    -- Ensure icon size preference is valid
+    if rfsuite.preferences.general.iconsize == nil or rfsuite.preferences.general.iconsize == "" then
+        rfsuite.preferences.general.iconsize = 1
+    else
+        rfsuite.preferences.general.iconsize = tonumber(rfsuite.preferences.general.iconsize)
+    end
+
+    -- Determine dimensions
+    local w, h = rfsuite.utils.getWindowSize()
+    local windowWidth = w
+    local windowHeight = h
+
+    local buttonW, buttonH, padding, numPerRow
+
+    if rfsuite.preferences.general.iconsize == 0 then
+        padding = rfsuite.app.radio.buttonPaddingSmall
+        buttonW = (rfsuite.app.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
+        buttonH = rfsuite.app.radio.navbuttonHeight
+        numPerRow = rfsuite.app.radio.buttonsPerRow
+    elseif rfsuite.preferences.general.iconsize == 1 then
+        padding = rfsuite.app.radio.buttonPaddingSmall
+        buttonW = rfsuite.app.radio.buttonWidthSmall
+        buttonH = rfsuite.app.radio.buttonHeightSmall
+        numPerRow = rfsuite.app.radio.buttonsPerRowSmall
+    elseif rfsuite.preferences.general.iconsize == 2 then
+        padding = rfsuite.app.radio.buttonPadding
+        buttonW = rfsuite.app.radio.buttonWidth
+        buttonH = rfsuite.app.radio.buttonHeight
+        numPerRow = rfsuite.app.radio.buttonsPerRow
+    end
+
+    rfsuite.app.gfx_buttons["mainmenu"] = rfsuite.app.gfx_buttons["mainmenu"] or {}
+    rfsuite.preferences.menulastselected["mainmenu"] = rfsuite.preferences.menulastselected["mainmenu"] or 1
+
+    local Menu = assert(rfsuite.compiler.loadfile("app/modules/sections.lua"))()
+    local lc, bx, y = 0, 0, 0
+
+    local header = form.addLine("Configuration")
+
+    for pidx, pvalue in ipairs(Menu) do
+        if not pvalue.developer then
+            rfsuite.app.formFieldsOffline[pidx] = pvalue.offline or false
+
+            if pvalue.newline then
+                lc = 0
+                form.addLine("System")
+            end
+
+            if lc == 0 then
+                y = form.height() + (rfsuite.preferences.general.iconsize == 2 and
+                    rfsuite.app.radio.buttonPadding or rfsuite.app.radio.buttonPaddingSmall)
+            end
+
+            bx = (buttonW + padding) * lc
+
+            if rfsuite.preferences.general.iconsize ~= 0 then
+                rfsuite.app.gfx_buttons["mainmenu"][pidx] = rfsuite.app.gfx_buttons["mainmenu"][pidx]
+                    or lcd.loadMask(pvalue.image)
+            else
+                rfsuite.app.gfx_buttons["mainmenu"][pidx] = nil
+            end
+
+            rfsuite.app.formFields[pidx] = form.addButton(line, {
+                x = bx,
+                y = y,
+                w = buttonW,
+                h = buttonH
+            }, {
+                text = pvalue.title,
+                icon = rfsuite.app.gfx_buttons["mainmenu"][pidx],
+                options = FONT_S,
+                paint = function() end,
+                press = function()
+                    rfsuite.preferences.menulastselected["mainmenu"] = pidx
+                    rfsuite.app.ui.progressDisplay()
+                    if pvalue.module then
+                        rfsuite.app.isOfflinePage = true
+                        rfsuite.app.ui.openPage(pidx, pvalue.title, pvalue.module .. "/" .. pvalue.script)
+                    else
+                        rfsuite.app.ui.openMainMenuSub(pvalue.id)
+                    end
+                end
+            })
+
+            if pvalue.disabled then
+                rfsuite.app.formFields[pidx]:enable(false)
+            end
+
+            if rfsuite.preferences.menulastselected["mainmenu"] == pidx then
+                rfsuite.app.formFields[pidx]:focus()
+            end
+
+            lc = lc + 1
+            if lc == numPerRow then lc = 0 end
+        end
+    end
+
+    rfsuite.app.triggers.closeProgressLoader = true
+    collectgarbage()
+    rfsuite.utils.reportMemoryUsage("MainMenuSub")
+end
+
+
+--[[
+    Opens the main menu sub-section based on the active section.
+    
+    This function initializes various application states, clears old icons, and sets up the main menu layout.
+    It also handles button sizes based on user preferences and populates the menu with sections and pages.
+    
+    @param activesection The ID of the active section to display in the main menu.
+]]
+function ui.openMainMenuSub(activesection)
+    rfsuite.app.formFields = {}
+    rfsuite.app.formFieldsOffline = {}
+    rfsuite.app.formLines = {}
+    rfsuite.app.lastLabel = nil
+    rfsuite.app.isOfflinePage = false
+    rfsuite.app.gfx_buttons[activesection] = {}
+    rfsuite.app.lastMenu = activesection
+
+    -- Clear old icons
+    for i in pairs(rfsuite.app.gfx_buttons) do
+        if i ~= activesection then
+            rfsuite.app.gfx_buttons[i] = nil
+        end
+    end
+
+    -- Hard exit on error
+    if not rfsuite.utils.ethosVersionAtLeast(config.ethosVersion) then return end
 
     local MainMenu = rfsuite.app.MainMenu
 
@@ -348,7 +496,7 @@ function ui.openMainMenu()
     if rfsuite.preferences.general.iconsize == 0 then
         -- Text icons
         padding = rfsuite.app.radio.buttonPaddingSmall
-        buttonW = (rfsuite.session.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
+        buttonW = (rfsuite.app.lcdWidth - padding) / rfsuite.app.radio.buttonsPerRow - padding
         buttonH = rfsuite.app.radio.navbuttonHeight
         numPerRow = rfsuite.app.radio.buttonsPerRow
     elseif rfsuite.preferences.general.iconsize == 1 then
@@ -365,21 +513,41 @@ function ui.openMainMenu()
         numPerRow = rfsuite.app.radio.buttonsPerRow
     end
 
-    local sc
-    local panel
-
     form.clear()
 
-    rfsuite.app.gfx_buttons["mainmenu"] = rfsuite.app.gfx_buttons["mainmenu"] or {}
-    rfsuite.preferences.menulastselected["mainmenu"] = rfsuite.preferences.menulastselected["mainmenu"] or 1
+    rfsuite.app.gfx_buttons[activesection] = rfsuite.app.gfx_buttons[activesection] or {}
+    rfsuite.preferences.menulastselected[activesection] = rfsuite.preferences.menulastselected[activesection] or 1
 
     for idx, section in ipairs(MainMenu.sections) do
-        local hideSection = (section.ethosversion and rfsuite.session.ethosRunningVersion < section.ethosversion) or
-                            (section.mspversion and (rfsuite.session.apiVersion or 1) < section.mspversion) or
-                            (section.developer and not rfsuite.preferences.developer.devtools)
+        if section.id == activesection then
+            local w, h = rfsuite.utils.getWindowSize()
+            local windowWidth, windowHeight = w, h
+            local padding = rfsuite.app.radio.buttonPadding
 
-        if not hideSection then
             form.addLine(section.title)
+
+            local x = windowWidth - 110 -- 100 + 10 padding
+            rfsuite.app.formNavigationFields['menu'] = form.addButton(line, {
+                x = x,
+                y = rfsuite.app.radio.linePaddingTop,
+                w = 100,
+                h = rfsuite.app.radio.navbuttonHeight
+            }, {
+                text = "MENU",
+                icon = nil,
+                options = FONT_S,
+                paint = function() end,
+                press = function()
+                    rfsuite.app.lastIdx = nil
+                    rfsuite.session.lastPage = nil
+                    if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then
+                        rfsuite.app.Page.onNavMenu(rfsuite.app.Page)
+                    end
+                    rfsuite.app.ui.openMainMenu()
+                end
+            })
+            rfsuite.app.formNavigationFields['menu']:focus()
+
             local lc, y = 0, 0
 
             for pidx, page in ipairs(MainMenu.pages) do
@@ -389,33 +557,41 @@ function ui.openMainMenu()
                                       (page.developer and not rfsuite.preferences.developer.devtools)
 
                     local offline = page.offline
+                    rfsuite.app.formFieldsOffline[pidx] = offline or false
 
                     if not hideEntry then
                         if lc == 0 then
-                            y = form.height() + (rfsuite.preferences.general.iconsize == 2 and rfsuite.app.radio.buttonPadding or rfsuite.app.radio.buttonPaddingSmall)
+                            y = form.height() + ((rfsuite.preferences.general.iconsize == 2) and rfsuite.app.radio.buttonPadding or rfsuite.app.radio.buttonPaddingSmall)
                         end
 
                         local x = (buttonW + padding) * lc
+
                         if rfsuite.preferences.general.iconsize ~= 0 then
-                            rfsuite.app.gfx_buttons["mainmenu"][pidx] = rfsuite.app.gfx_buttons["mainmenu"][pidx] or lcd.loadMask("app/modules/" .. page.folder .. "/" .. page.image)
+                            rfsuite.app.gfx_buttons[activesection][pidx] = rfsuite.app.gfx_buttons[activesection][pidx]
+                                or lcd.loadMask("app/modules/" .. page.folder .. "/" .. page.image)
                         else
-                            rfsuite.app.gfx_buttons["mainmenu"][pidx] = nil
+                            rfsuite.app.gfx_buttons[activesection][pidx] = nil
                         end
 
-                        rfsuite.app.formFields[pidx] = form.addButton(line, {x = x, y = y, w = buttonW, h = buttonH}, {
+                        rfsuite.app.formFields[pidx] = form.addButton(line, {
+                            x = x,
+                            y = y,
+                            w = buttonW,
+                            h = buttonH
+                        }, {
                             text = page.title,
-                            icon = rfsuite.app.gfx_buttons["mainmenu"][pidx],
+                            icon = rfsuite.app.gfx_buttons[activesection][pidx],
                             options = FONT_S,
                             paint = function() end,
                             press = function()
-                                rfsuite.preferences.menulastselected["mainmenu"] = pidx
+                                rfsuite.preferences.menulastselected[activesection] = pidx
                                 rfsuite.app.ui.progressDisplay()
                                 rfsuite.app.isOfflinePage = offline
-                                rfsuite.app.ui.openPage(pidx, page.title, page.folder .. "/" .. page.script)                          
+                                rfsuite.app.ui.openPage(pidx, page.title, page.folder .. "/" .. page.script)
                             end
                         })
 
-                        if rfsuite.preferences.menulastselected["mainmenu"] == pidx then
+                        if rfsuite.preferences.menulastselected[activesection] == pidx then
                             rfsuite.app.formFields[pidx]:focus()
                         end
 
@@ -426,9 +602,11 @@ function ui.openMainMenu()
         end
     end
 
+    rfsuite.app.triggers.closeProgressLoader = true
     collectgarbage()
-    rfsuite.utils.reportMemoryUsage("MainMenu")
+    rfsuite.utils.reportMemoryUsage("MainMenuSub")
 end
+
 
 
 --[[
@@ -481,7 +659,7 @@ function ui.fieldChoice(i)
         local p = rfsuite.app.utils.getInlinePositions(f, page)
         posText  = p.posText
         posField = p.posField
-        form.addStaticText(formLines[rfsuite.session.formLineCnt], posText, f.t)
+        form.addStaticText(formLines[rfsuite.app.formLineCnt], posText, f.t)
     else
         if f.t then
             if radioText == 2 and f.t2 then
@@ -491,13 +669,13 @@ function ui.fieldChoice(i)
                 f.t = "        " .. f.t
             end
         end
-        rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-        formLines[rfsuite.session.formLineCnt] = form.addLine(f.t)
+        rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+        formLines[rfsuite.app.formLineCnt] = form.addLine(f.t)
         posField = f.position or nil
     end
 
     local tbldata = f.table and rfsuite.app.utils.convertPageValueTable(f.table, f.tableIdxInc) or {}
-    formFields[i] = form.addChoiceField(formLines[rfsuite.session.formLineCnt], posField, tbldata,
+    formFields[i] = form.addChoiceField(formLines[rfsuite.app.formLineCnt], posField, tbldata,
         function()
             if not fields or not fields[i] then
                 ui.disableAllFields()
@@ -553,7 +731,7 @@ function ui.fieldNumber(i)
         local p = rfsuite.app.utils.getInlinePositions(f, page)
         posText  = p.posText
         posField = p.posField
-        form.addStaticText(formLines[rfsuite.session.formLineCnt], posText, f.t)
+        form.addStaticText(formLines[rfsuite.app.formLineCnt], posText, f.t)
     else
         if f.t then
             if f.label then
@@ -563,8 +741,8 @@ function ui.fieldNumber(i)
             f.t = ""
         end
 
-        rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-        formLines[rfsuite.session.formLineCnt] = form.addLine(f.t)
+        rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+        formLines[rfsuite.app.formLineCnt] = form.addLine(f.t)
         posField = f.position or nil
     end
 
@@ -584,7 +762,7 @@ function ui.fieldNumber(i)
     minValue = minValue or 0
     maxValue = maxValue or 0
 
-    formFields[i] = form.addNumberField(formLines[rfsuite.session.formLineCnt], posField, minValue, maxValue,
+    formFields[i] = form.addNumberField(formLines[rfsuite.app.formLineCnt], posField, minValue, maxValue,
         function()
             if not (page.fields and page.fields[i]) then
                 ui.disableAllFields()
@@ -672,7 +850,7 @@ function ui.fieldStaticText(i)
         local p = rfsuite.app.utils.getInlinePositions(f, page)
         posText  = p.posText
         posField = p.posField
-        form.addStaticText(formLines[rfsuite.session.formLineCnt], posText, f.t)
+        form.addStaticText(formLines[rfsuite.app.formLineCnt], posText, f.t)
     else
         if radioText == 2 and f.t2 then
             f.t = f.t2
@@ -684,8 +862,8 @@ function ui.fieldStaticText(i)
         else
             f.t = ""
         end
-        rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-        formLines[rfsuite.session.formLineCnt] = form.addLine(f.t)
+        rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+        formLines[rfsuite.app.formLineCnt] = form.addLine(f.t)
         posField = f.position or nil
     end
 
@@ -693,7 +871,7 @@ function ui.fieldStaticText(i)
         -- posField = {x = 2000, y = 0, w = 20, h = 20}
     end
 
-    formFields[i] = form.addStaticText(formLines[rfsuite.session.formLineCnt], posField, rfsuite.app.utils.getFieldValue(fields[i]))
+    formFields[i] = form.addStaticText(formLines[rfsuite.app.formLineCnt], posField, rfsuite.app.utils.getFieldValue(fields[i]))
     local currentField = formFields[i]
 
     if f.onFocus then
@@ -737,7 +915,7 @@ function ui.fieldText(i)
         local p = rfsuite.app.utils.getInlinePositions(f, page)
         posText  = p.posText
         posField = p.posField
-        form.addStaticText(formLines[rfsuite.session.formLineCnt], posText, f.t)
+        form.addStaticText(formLines[rfsuite.app.formLineCnt], posText, f.t)
     else
         if radioText == 2 and f.t2 then
             f.t = f.t2
@@ -751,12 +929,12 @@ function ui.fieldText(i)
             f.t = ""
         end
 
-        rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-        formLines[rfsuite.session.formLineCnt] = form.addLine(f.t)
+        rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+        formLines[rfsuite.app.formLineCnt] = form.addLine(f.t)
         posField = f.position or nil
     end
 
-    formFields[i] = form.addTextField(formLines[rfsuite.session.formLineCnt], posField,
+    formFields[i] = form.addTextField(formLines[rfsuite.app.formLineCnt], posField,
         function()
             if not fields or not fields[i] then
                 ui.disableAllFields()
@@ -833,12 +1011,12 @@ function ui.fieldLabel(f, i, l)
         end
         local labelName = f.t and labelValue or "unknown"
 
-        if f.label ~= rfsuite.session.lastLabel then
+        if f.label ~= rfsuite.app.lastLabel then
             label.type = label.type or 0
-            rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-            app.formLines[rfsuite.session.formLineCnt] = form.addLine(labelName)
-            form.addStaticText(app.formLines[rfsuite.session.formLineCnt], nil, "")
-            rfsuite.session.lastLabel = f.label
+            rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+            app.formLines[rfsuite.app.formLineCnt] = form.addLine(labelName)
+            form.addStaticText(app.formLines[rfsuite.app.formLineCnt], nil, "")
+            rfsuite.app.lastLabel = f.label
         end
     end
 end
@@ -856,7 +1034,7 @@ function ui.fieldHeader(title)
     local utils  = rfsuite.utils
     local radio  = app.radio
     local formFields = app.formFields
-    local lcdWidth   = rfsuite.session.lcdWidth
+    local lcdWidth   = rfsuite.app.lcdWidth
 
     local w, h = utils.getWindowSize()
     local padding = 5
@@ -934,7 +1112,7 @@ function ui.openPage(idx, title, script, extra1, extra2, extra3, extra5, extra6)
     rfsuite.app.triggers.isReady = false
     rfsuite.app.formFields = {}
     rfsuite.app.formLines = {}
-    rfsuite.session.lastLabel = nil
+    rfsuite.app.lastLabel = nil
 
     -- Load the module
     local modulePath = "app/modules/" .. script
@@ -971,12 +1149,12 @@ function ui.openPage(idx, title, script, extra1, extra2, extra3, extra5, extra6)
         form.addStaticText(headerLine, {
             x = 0,
             y = rfsuite.app.radio.linePaddingTop,
-            w = rfsuite.session.lcdWidth,
+            w = rfsuite.app.lcdWidth,
             h = rfsuite.app.radio.navbuttonHeight
         }, rfsuite.app.Page.headerLine)
     end
 
-    rfsuite.session.formLineCnt = 0
+    rfsuite.app.formLineCnt = 0
 
     rfsuite.utils.log("Merging form data from mspapi", "debug")
     rfsuite.app.Page.fields = rfsuite.app.Page.apidata.formdata.fields
@@ -1014,118 +1192,6 @@ function ui.openPage(idx, title, script, extra1, extra2, extra3, extra5, extra6)
         end
     end
     rfsuite.utils.reportMemoryUsage(title)
-end
-
-function ui.openPageDashboard(idx, title, script, source, folder)
-    -- Initialize global UI state and clear form data
-    rfsuite.app.uiState = rfsuite.app.uiStatus.pages
-    rfsuite.app.triggers.isReady = false
-    rfsuite.app.formFields = {}
-    rfsuite.app.formLines = {}
-    rfsuite.session.lastLabel = nil
-
-    rfsuite.session.dashboardEditingTheme = source .. "/" .. folder
-
-    -- Load the module
-    local modulePath =  script
-
-    rfsuite.app.Page = assert(rfsuite.compiler.loadfile(modulePath))(idx)
-
-    -- load up the menu
-    local w, h = rfsuite.utils.getWindowSize()
-    local windowWidth = w
-    local windowHeight = h
-    local padding = rfsuite.app.radio.buttonPadding
-
-    local sc
-    local panel   
-
-    form.clear()
-
-    --form.addLine("../ " .. i18n("app.modules.settings.dashboard") .. " / " .. i18n("app.modules.settings.name") .. " / " .. title)
-    form.addLine( i18n("app.modules.settings.name") .. " / " .. title)
-    buttonW = 100
-    local x = windowWidth - (buttonW * 2) - 15
-
-    rfsuite.app.formNavigationFields['menu'] = form.addButton(line, {x = x, y = rfsuite.app.radio.linePaddingTop, w = buttonW, h = rfsuite.app.radio.navbuttonHeight}, {
-        text = i18n("app.navigation_menu"),
-        icon = nil,
-        options = FONT_S,
-        paint = function()
-        end,
-        press = function()
-            rfsuite.app.lastIdx = nil
-            rfsuite.session.lastPage = nil
-
-            if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then rfsuite.app.Page.onNavMenu(rfsuite.app.Page) end
-
-
-            rfsuite.app.ui.openPage(
-                pageIdx,
-                i18n("app.modules.settings.dashboard"),
-                "settings/tools/dashboard_settings.lua"
-            )
-        end
-    })
-    rfsuite.app.formNavigationFields['menu']:focus()
-
-
-    local x = windowWidth - buttonW - 10
-    rfsuite.app.formNavigationFields['save'] = form.addButton(line, {x = x, y = rfsuite.app.radio.linePaddingTop, w = buttonW, h = rfsuite.app.radio.navbuttonHeight}, {
-        text = "SAVE",
-        icon = nil,
-        options = FONT_S,
-        paint = function()
-        end,
-        press = function()
-
-                local buttons = {
-                    {
-                        label  = i18n("app.btn_ok_long"),
-                        action = function()
-                            local msg = i18n("app.modules.profile_select.save_prompt_local")
-                            rfsuite.app.ui.progressDisplaySave(msg:gsub("%?$", "."))
-                            if rfsuite.app.Page.write then
-                                rfsuite.app.Page.write()
-                            end    
-                            -- update dashboard theme
-                            rfsuite.widgets.dashboard.reload_themes()
-                            rfsuite.app.triggers.closeSave = true
-                            return true
-                        end,
-                    },
-                    {
-                        label  = i18n("app.modules.profile_select.cancel"),
-                        action = function()
-                            return true
-                        end,
-                    },
-                }
-
-                form.openDialog({
-                    width   = nil,
-                    title   = i18n("app.modules.profile_select.save_settings"),
-                    message = i18n("app.modules.profile_select.save_prompt_local"),
-                    buttons = buttons,
-                    wakeup  = function() end,
-                    paint   = function() end,
-                    options = TEXT_LEFT,
-                })
-
-        end
-    })
-    rfsuite.app.formNavigationFields['menu']:focus()
-
-
-    
-    -- If the Page has its own openPage function, use it and return early
-    if rfsuite.app.Page.configure then
-        rfsuite.app.Page.configure(idx, title, script, extra1, extra2, extra3, extra5, extra6)
-        rfsuite.utils.reportMemoryUsage(title)
-        rfsuite.app.triggers.closeProgressLoader = true
-        return
-    end
-
 end
 
 
@@ -1197,6 +1263,8 @@ function ui.navigationButtons(x, y, w, h)
             press = function()
                 if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then
                     rfsuite.app.Page.onNavMenu(rfsuite.app.Page)
+                elseif rfsuite.app.lastMenu ~= nil then
+                   rfsuite.app.ui.openMainMenuSub(rfsuite.app.lastMenu)
                 else
                     rfsuite.app.ui.openMainMenu()
                 end
@@ -1312,7 +1380,7 @@ function ui.openPageHelp(txtData, section)
     local message = table.concat(txtData, "\r\n\r\n")
 
     form.openDialog({
-        width = rfsuite.session.lcdWidth,
+        width = rfsuite.app.lcdWidth,
         title = "Help - " .. rfsuite.app.lastTitle,
         message = message,
         buttons = {{

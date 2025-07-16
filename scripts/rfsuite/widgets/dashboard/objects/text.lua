@@ -1,11 +1,8 @@
 local wrapper = {}
 
-local renders = {}
+local renders = rfsuite.widgets.dashboard.renders
 local folder = "SCRIPTS:/" .. rfsuite.config.baseDir .. "/widgets/dashboard/objects/text/"
-
-local function isModelPrefsReady()
-    return rfsuite and rfsuite.session and rfsuite.session.modelPreferences
-end
+local utils = rfsuite.widgets.dashboard.utils
 
 function wrapper.paint(x, y, w, h, box)
     local subtype = box.subtype or "telemetry"
@@ -14,17 +11,16 @@ function wrapper.paint(x, y, w, h, box)
     render.paint(x, y, w, h, box)
 end
 
-function wrapper.wakeup(box, telemetry)
+function wrapper.wakeup(box)
 
     -- Ensure model preferences and telemetry are available
-    if not isModelPrefsReady() then
-        return
+    if not utils.isModelPrefsReady() then
+        utils.resetBoxCache(box)
     end
-    if not telemetry then return end
 
     -- Wakeup interval control using optional parameter (wakeupinterval)
     if box.wakeupinterval ~= nil then
-        local now      = rfsuite.clock
+        local now      = os.clock()
 
         -- initialize on first use
         box._wakeupInterval = box._wakeupInterval or interval
@@ -52,11 +48,11 @@ function wrapper.wakeup(box, telemetry)
     end
 
     local render = renders[subtype]
-    render.wakeup(box, telemetry)
+    render.wakeup(box)
 end
 
 function wrapper.dirty(box)
-    if not isModelPrefsReady() then return false end
+    if not utils.isModelPrefsReady() then return false end
     local subtype = box.subtype or "flight"
     local render = renders[subtype]
     return render and render.dirty and render.dirty(box) or false

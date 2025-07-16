@@ -68,12 +68,17 @@ function render.dirty(box)
     return false
 end
 
+function render.wakeup(box)
 
-function render.wakeup(box, telemetry)
+    local telemetry = rfsuite.tasks.telemetry
+
     -- Value extraction
     local source = getParam(box, "source")
     local statType = getParam(box, "stattype") or "max"
     local value, unit
+
+    -- Determine if telemetry is active
+    local telemetryActive = rfsuite.session and rfsuite.session.isConnected
 
     if source and telemetry and telemetry.getSensorStats then
         local stats = telemetry.getSensorStats(source)
@@ -85,12 +90,14 @@ function render.wakeup(box, telemetry)
         local sensorDef = telemetry.sensorTable and telemetry.sensorTable[source]
         local localize = sensorDef and sensorDef.localizations
 
-        if localize and type(localize) == "function" and value ~= nil then
-            local localizedValue, _, localizedUnit = localize(value)
-            if localizedValue ~= nil then value = localizedValue end
-            if localizedUnit ~= nil then unit = localizedUnit end
-        elseif sensorDef and sensorDef.unit_string then
+        if sensorDef and sensorDef.unit_string then
             unit = sensorDef.unit_string
+        end
+
+        -- Only localize the unit string for display, never the value itself
+        if localize and type(localize) == "function" and value ~= nil then
+            local _, _, localizedUnit = localize(value)
+            if localizedUnit ~= nil then unit = localizedUnit end
         end
     end
 
@@ -98,6 +105,16 @@ function render.wakeup(box, telemetry)
     local overrideUnit = getParam(box, "unit")
     if overrideUnit ~= nil then
         unit = overrideUnit
+    end
+
+    -- Cache the last valid value/unit if telemetry is active and value is present
+    if value ~= nil and telemetryActive then
+        box._lastValidValue = value
+        box._lastValidUnit = unit
+    elseif box._lastValidValue ~= nil then
+        -- Use cached value/unit if telemetry is lost
+        value = box._lastValidValue
+        unit = box._lastValidUnit
     end
 
     local fallbackText = getParam(box, "novalue") or "-"
@@ -118,7 +135,7 @@ function render.wakeup(box, telemetry)
     if type(displayValue) == "string" and displayValue:match("^%.+$") then
         unit = nil
     end
-    
+
     -- Set box.value so dashboard/dirty can track change for redraws
     box._currentDisplayValue = displayValue
 

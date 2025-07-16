@@ -27,14 +27,21 @@ local utils = rfsuite.utils
 local log = utils.log
 local tasks = rfsuite.tasks
 
+
 -- Supported resolutions
 local supportedResolutions = {
     { 784, 294 },   -- X20, X20RS etc
     { 784, 316 },   -- X20, X20RS etc (no title)
+    { 800, 458 },   -- X20, X20RS etc (full screen)
+    { 800, 480 },   -- X20, X20RS etc (full screen / no title)
     { 472, 191 },   -- TWXLITE, X18, X18S
     { 472, 210 },   -- TWXLITE, X18, X18S (no title)
+    { 480, 301 },   -- TWXLITE, X18, X18S (full screen)
+    { 480, 320 },   -- TWXLITE, X18, X18S (full screen / no title)
     { 630, 236 },   -- X14
     { 630, 258 },   -- X14 (no title)
+    { 640, 301 },   -- X14 (full screen)
+    { 640, 360 },   -- X14 (full screen / no title)
 }
 
 
@@ -42,9 +49,9 @@ local supportedResolutions = {
 local lastFlightMode = nil
 
 -- Capture the script start time for uptime or performance measurements
-local initTime = rfsuite.clock
+local initTime = os.clock()
 
-local lastWakeup = rfsuite.clock
+local lastWakeup = os.clock()
 
 -- Default theme to fall back on if user or system theme fails to load
 dashboard.DEFAULT_THEME = "system/default"
@@ -255,7 +262,7 @@ function dashboard.computeOverlayMessage()
     
 
     if dashboard.themeFallbackUsed and dashboard.themeFallbackUsed[state] and
-       (rfsuite.clock - (dashboard.themeFallbackTime and dashboard.themeFallbackTime[state] or 0)) < 10 then
+       (os.clock() - (dashboard.themeFallbackTime and dashboard.themeFallbackTime[state] or 0)) < 10 then
         return i18n("widgets.dashboard.theme_load_error")
     elseif not utils.ethosVersionAtLeast() then
         return string.format(
@@ -270,8 +277,10 @@ function dashboard.computeOverlayMessage()
         return i18n("widgets.dashboard.check_rf_module_on")
     elseif not (sportSensor or elrsSensor) then
         return i18n("widgets.dashboard.check_discovered_sensors")
-    elseif not rfsuite.session.isConnected  and  state ~= "postflight" then
+    elseif not rfsuite.session.isConnectedHigh and  state ~= "postflight" then
         return i18n("widgets.dashboard.waiting_for_connection")    
+    elseif rfsuite.session.isConnectedHigh and not rfsuite.session.isConnectedLow and  state ~= "postflight" then
+        return i18n("widgets.dashboard.identifying_fbl")            
     elseif not rfsuite.session.telemetryState and state == "preflight" then
         return i18n("widgets.dashboard.no_link")
     elseif rfsuite.session.telemetryState and telemetry and not telemetry.validateSensors() then
@@ -434,8 +443,8 @@ function dashboard.renderLayout(widget, config)
     ----------------------------------------------------------------
     -- PHASE 2: Spinner Until First Wakeup Pass Completes
     ----------------------------------------------------------------
-    dashboard._loader_start_time = dashboard._loader_start_time or rfsuite.clock
-    local loaderElapsed = rfsuite.clock - dashboard._loader_start_time
+    dashboard._loader_start_time = dashboard._loader_start_time or os.clock()
+    local loaderElapsed = os.clock() - dashboard._loader_start_time
     if objectsThreadedWakeupCount < 1 or loaderElapsed < dashboard._loader_min_duration then
         dashboard.loader(0, 0, W, H)
         lcd.invalidate()
@@ -452,7 +461,7 @@ function dashboard.renderLayout(widget, config)
         local box = rect.box
         local obj = dashboard.objectsByType[box.type]
         if obj and obj.paint then
-            obj.paint(rect.x, rect.y, rect.w, rect.h, box, telemetry)
+            obj.paint(rect.x, rect.y, rect.w, rect.h, box)
         end
 
         if dashboard.selectedBoxIndex == i and box.onpress then
@@ -529,7 +538,7 @@ local function load_state_script(theme_folder, state, isFallback)
         end
         -- default is broken too
         dashboard.themeFallbackUsed[state] = true
-        dashboard.themeFallbackTime[state] = rfsuite.clock
+        dashboard.themeFallbackTime[state] = os.clock()
         return nil
     end
 
@@ -544,7 +553,7 @@ local function load_state_script(theme_folder, state, isFallback)
             return load_state_script(dashboard.DEFAULT_THEME, state, true)
         end
         dashboard.themeFallbackUsed[state] = true
-        dashboard.themeFallbackTime[state] = rfsuite.clock
+        dashboard.themeFallbackTime[state] = os.clock()
         return nil
     end
 
@@ -555,7 +564,7 @@ local function load_state_script(theme_folder, state, isFallback)
             return load_state_script(dashboard.DEFAULT_THEME, state, true)
         end
         dashboard.themeFallbackUsed[state] = true
-        dashboard.themeFallbackTime[state] = rfsuite.clock
+        dashboard.themeFallbackTime[state] = os.clock()
         return nil
     end
 
@@ -574,13 +583,13 @@ local function load_state_script(theme_folder, state, isFallback)
         -- even default missing? give up
         log("dashboard: Could not load "..scriptName.." for "..folder.." or default: "..tostring(chunkErr), "info")
         dashboard.themeFallbackUsed[state] = true
-        dashboard.themeFallbackTime[state] = rfsuite.clock
+        dashboard.themeFallbackTime[state] = os.clock()
         return nil
     end
 
     -- at this point, we successfully have a chunk; mark no fallback
     dashboard.themeFallbackUsed[state] = (isFallback == true)
-    dashboard.themeFallbackTime[state] = isFallback and rfsuite.clock or 0
+    dashboard.themeFallbackTime[state] = isFallback and os.clock() or 0
     setPath()
 
     -- if standalone, return the chunk itself; otherwise run it and return module
@@ -593,7 +602,7 @@ local function load_state_script(theme_folder, state, isFallback)
                 return load_state_script(dashboard.DEFAULT_THEME, state, true)
             end
             dashboard.themeFallbackUsed[state] = true
-            dashboard.themeFallbackTime[state] = rfsuite.clock
+            dashboard.themeFallbackTime[state] = os.clock()
             return nil
         end
         return module
@@ -655,16 +664,8 @@ function dashboard.reload_active_theme_only(force)
     lcd.invalidate()
 end
 
+function dashboard.applySchedulerSettings()
 
-
-function dashboard.reload_themes(force)
-    -- Step 1: Load just the active theme and reset core state
-    dashboard.reload_active_theme_only(force)
-
-    -- Step 2: Reset state preload index (wake-up loop will handle it)
-    statePreloadIndex = 1  -- start loading immediately
-
-    -- Step 3: Load scheduler intervals from active module only
     local active = dashboard.flightmode or "preflight"
     local mod = loadedStateModules[active]
     if mod and mod.scheduler then
@@ -672,6 +673,7 @@ function dashboard.reload_themes(force)
         if type(initTable) == "table" then
 
             dashboard._useSpreadScheduling = (initTable.spread_scheduling ~= false)
+            dashboard._useSpreadSchedulingPaint = (initTable.spread_scheduling_paint ~= false)
 
             -- NEW: optionally override spread ratio
             dashboard._spreadRatioOverride = (type(initTable.spread_ratio) == "number" and initTable.spread_ratio > 0 and initTable.spread_ratio <= 1)
@@ -679,12 +681,30 @@ function dashboard.reload_themes(force)
                 or nil
         else
             dashboard._useSpreadScheduling = true
+            dashboard._useSpreadSchedulingPaint = true
             dashboard._spreadRatioOverride = nil
         end
     else
         dashboard._useSpreadScheduling = true
+        dashboard._useSpreadSchedulingPaint = true
         dashboard._spreadRatioOverride = nil
     end
+
+end
+
+function dashboard.reload_themes(force)
+
+    -- Clear cached subtype renderers (e.g. time/flight/telemetry modules)
+    dashboard.renders = {}
+
+    -- Step 1: Load just the active theme and reset core state
+    dashboard.reload_active_theme_only(force)
+
+    -- Step 2: Reset state preload index (wake-up loop will handle it)
+    statePreloadIndex = 1  -- start loading immediately
+
+    -- Step 3: Apply scheduler settings
+    dashboard.applySchedulerSettings()
 
     -- Step 4: Load object types for active module only
     local boxes = {}
@@ -695,6 +715,30 @@ function dashboard.reload_themes(force)
         end
     end
     dashboard.loadAllObjects(boxes)
+
+
+    -- Force full redraw from top
+    firstWakeup = true
+    dashboard._loader_start_time = nil
+    dashboard._hg_cycles = dashboard._hg_cycles_required
+
+    -- Reset rendering state explicitly
+    dashboard._forceFullRepaint = true
+    dashboard.boxRects = {}
+    lastBoxRectsCount = 0
+    lastLoadedBoxCount = 0
+    objectWakeupIndex = 1
+    objectWakeupsPerCycle = nil
+    objectsThreadedWakeupCount = 0
+
+    -- force module.layout to be rendered
+    local mod = loadedStateModules[dashboard.flightmode or "preflight"]
+    if type(mod) == "table" and mod.layout and mod.boxes then
+        log("Manually triggering renderLayout after theme reload", "info")
+        dashboard.renderLayout(nil, mod)
+    end
+
+
 end
 
 
@@ -913,10 +957,6 @@ end
 -- @param widget The widget instance to update.
 function dashboard.wakeup(widget)
 
-    if not rfsuite.tasks.active() then
-        rfsuite.clock = os.clock()
-    end
-
     local telemetry = tasks.telemetry
     local W, H = lcd.getWindowSize()
 
@@ -938,6 +978,7 @@ function dashboard.wakeup(widget)
         local theme = getThemeForState("preflight")
         log("Initial loading of preflight theme: " .. theme, "info")
         loadedStateModules.preflight = load_state_script(theme, "preflight")
+        dashboard.applySchedulerSettings()
     end
 
     if statePreloadIndex <= #statePreloadQueue then
@@ -974,7 +1015,7 @@ function dashboard.wakeup(widget)
         end
     end
 
-    local now = rfsuite.clock
+    local now = os.clock()
     local visible = lcd.isVisible()
 
     -- slow down if not visible to give priority to other tasks
@@ -988,14 +1029,18 @@ function dashboard.wakeup(widget)
         dashboard.flightmode = currentFlightMode
         reload_state_only(currentFlightMode)
         lastFlightMode = currentFlightMode
-        lcd.invalidate(widget)
+        if dashboard._useSpreadSchedulingPaint then
+            lcd.invalidate(widget)
+        end    
     end
 
     local newMessage = dashboard.computeOverlayMessage()
     if dashboard.overlayMessage ~= newMessage then
         dashboard.overlayMessage = newMessage
         dashboard._hg_cycles = newMessage and dashboard._hg_cycles_required or 0
-        lcd.invalidate(widget)
+        if dashboard._useSpreadSchedulingPaint then
+            lcd.invalidate(widget)
+        end
     end
 
     local state = dashboard.flightmode or "preflight"
@@ -1012,7 +1057,7 @@ function dashboard.wakeup(widget)
             local rect = dashboard.boxRects[idx]
             local obj = dashboard.objectsByType[rect.box.type]
             if obj and obj.wakeup then
-                obj.wakeup(rect.box, telemetry)
+                obj.wakeup(rect.box)
             end
         end
 
@@ -1026,7 +1071,7 @@ function dashboard.wakeup(widget)
                 if rect then
                     local obj = dashboard.objectsByType[rect.box.type]
                     if obj and obj.wakeup and not obj.scheduler then
-                        obj.wakeup(rect.box, telemetry)
+                        obj.wakeup(rect.box)
                     end
 
                     if not needsFullInvalidate then
@@ -1047,27 +1092,38 @@ function dashboard.wakeup(widget)
             end
         end
 
-        if needsFullInvalidate then
-            lcd.invalidate()
-        else
-            for _, r in ipairs(dirtyRects) do
-                lcd.invalidate(r.x, r.y, r.w, r.h)
+        if dashboard._useSpreadSchedulingPaint then
+            if needsFullInvalidate then
+                lcd.invalidate()
+            else
+                for _, r in ipairs(dirtyRects) do
+                    lcd.invalidate(r.x, r.y, r.w, r.h)
+                end
             end
-        end
+        end    
     end
 
     if not lcd.hasFocus(widget) and dashboard.selectedBoxIndex ~= nil then
         log("Removing focus from box " .. tostring(dashboard.selectedBoxIndex), "info")
         dashboard.selectedBoxIndex = nil
-        lcd.invalidate(widget)
+        if dashboard._useSpreadSchedulingPaint then
+            lcd.invalidate(widget)
+        end    
     end
+
+
+
 
     if lcd.isVisible() then
         dashboard._lastMemReport = dashboard._lastMemReport or 0
-        if rfsuite.clock - dashboard._lastMemReport > 5 then
+        if os.clock() - dashboard._lastMemReport > 5 then
             rfsuite.utils.reportMemoryUsage("Dashboard")
-            dashboard._lastMemReport = rfsuite.clock
+            dashboard._lastMemReport = os.clock()
         end
+    end
+
+    if not dashboard._useSpreadSchedulingPaint then
+        lcd.invalidate()
     end
 end
 
@@ -1136,7 +1192,7 @@ function dashboard.getPreference(key)
     if not rfsuite.app.guiIsRunning then
         return rfsuite.ini.getvalue(rfsuite.session.modelPreferences, dashboard.currentWidgetPath, key)
     else
-        return rfsuite.ini.getvalue(rfsuite.session.modelPreferences, rfsuite.session.dashboardEditingTheme, key)
+        return rfsuite.ini.getvalue(rfsuite.session.modelPreferences, rfsuite.app.dashboardEditingTheme, key)
     end
 end
 
@@ -1154,7 +1210,7 @@ function dashboard.savePreference(key, value)
         rfsuite.ini.setvalue(rfsuite.session.modelPreferences, dashboard.currentWidgetPath, key, value)
         return rfsuite.ini.save_ini_file(rfsuite.session.modelPreferencesFile, rfsuite.session.modelPreferences)
     else
-        rfsuite.ini.setvalue(rfsuite.session.modelPreferences, rfsuite.session.dashboardEditingTheme, key, value)
+        rfsuite.ini.setvalue(rfsuite.session.modelPreferences, rfsuite.app.dashboardEditingTheme, key, value)
         return rfsuite.ini.save_ini_file(rfsuite.session.modelPreferencesFile, rfsuite.session.modelPreferences)
     end
 end
@@ -1202,5 +1258,7 @@ function dashboard.menu(widget)
     }
 end
 
+-- table to stall object cache
+dashboard.renders = dashboard.renders or {}
 
 return dashboard

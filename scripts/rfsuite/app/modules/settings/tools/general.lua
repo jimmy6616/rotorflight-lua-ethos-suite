@@ -1,7 +1,12 @@
-local settings = {}
 local i18n = rfsuite.i18n.get
+local enableWakeup = false
+
+-- Local config table for in-memory edits
+local config = {}
+
 local function openPage(pageIdx, title, script)
     enableWakeup = true
+    if not rfsuite.app.navButtons then rfsuite.app.navButtons = {} end
     rfsuite.app.triggers.closeProgressLoader = true
     form.clear()
 
@@ -12,20 +17,23 @@ local function openPage(pageIdx, title, script)
     rfsuite.app.ui.fieldHeader(
         i18n("app.modules.settings.name") .. " / " .. i18n("app.modules.settings.txt_general")
     )
-    rfsuite.session.formLineCnt = 0
-
+    rfsuite.app.formLineCnt = 0
     local formFieldCount = 0
 
-    settings = rfsuite.preferences.general
+    -- Prepare working config as a shallow copy of general preferences
+    local saved = rfsuite.preferences.general or {}
+    for k, v in pairs(saved) do
+        config[k] = v
+    end
 
     -- Icon size choice field
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine(
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(
         i18n("app.modules.settings.txt_iconsize")
     )
     rfsuite.app.formFields[formFieldCount] = form.addChoiceField(
-        rfsuite.app.formLines[rfsuite.session.formLineCnt],
+        rfsuite.app.formLines[rfsuite.app.formLineCnt],
         nil,
         {
             { i18n("app.modules.settings.txt_text"),  0 },
@@ -33,39 +41,35 @@ local function openPage(pageIdx, title, script)
             { i18n("app.modules.settings.txt_large"), 2 },
         },
         function()
-            if rfsuite.preferences and rfsuite.preferences.general and rfsuite.preferences.general.iconsize then
-                return settings.iconsize
-            else
-                return 1
-            end
+            return config.iconsize ~= nil and config.iconsize or 1
         end,
         function(newValue)
-            if rfsuite.preferences and rfsuite.preferences.general then
-                settings.iconsize = newValue
-            end
+            config.iconsize = newValue
         end
     )
 
     -- Sync-name toggle field
     formFieldCount = formFieldCount + 1
-    rfsuite.session.formLineCnt = rfsuite.session.formLineCnt + 1
-    rfsuite.app.formLines[rfsuite.session.formLineCnt] = form.addLine(
+    rfsuite.app.formLineCnt = rfsuite.app.formLineCnt + 1
+    rfsuite.app.formLines[rfsuite.app.formLineCnt] = form.addLine(
         i18n("app.modules.settings.txt_syncname")
     )
     rfsuite.app.formFields[formFieldCount] = form.addBooleanField(
-        rfsuite.app.formLines[rfsuite.session.formLineCnt],
+        rfsuite.app.formLines[rfsuite.app.formLineCnt],
         nil,
         function()
-            if rfsuite.preferences and rfsuite.preferences.general then
-                return settings.syncname
-            end
+            return config.syncname or false
         end,
         function(newValue)
-            if rfsuite.preferences and rfsuite.preferences.general then
-                settings.syncname = newValue
-            end
+            config.syncname = newValue
         end
     )
+
+    -- Always enable all fields and Save
+    for i, field in ipairs(rfsuite.app.formFields) do
+        if field and field.enable then field:enable(true) end
+    end
+    rfsuite.app.navButtons.save = true
 end
 
 local function onNavMenu()
@@ -84,7 +88,7 @@ local function onSaveMenu()
             action = function()
                 local msg = i18n("app.modules.profile_select.save_prompt_local")
                 rfsuite.app.ui.progressDisplaySave(msg:gsub("%?$", "."))
-                for key, value in pairs(settings) do
+                for key, value in pairs(config) do
                     rfsuite.preferences.general[key] = value
                 end
                 rfsuite.ini.save_ini_file(
@@ -129,7 +133,6 @@ end
 return {
     event      = event,
     openPage   = openPage,
-    wakeup     = wakeup,
     onNavMenu  = onNavMenu,
     onSaveMenu = onSaveMenu,
     navButtons = {

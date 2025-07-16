@@ -6,7 +6,7 @@ local enableWakeup = false
 
 -- Build and display the Logs directory selection page
 local function openPage(idx, title, script)
-    rfsuite.session.activeLogDir = nil
+    rfsuite.app.activeLogDir = nil
     if not rfsuite.utils.ethosVersionAtLeast() then return end
 
     -- Reset any running MSP task overrides
@@ -32,7 +32,7 @@ local function openPage(idx, title, script)
 
     if icons == 0 then
         padding = radio.buttonPaddingSmall
-        btnW = (rfsuite.session.lcdWidth - padding) / radio.buttonsPerRow - padding
+        btnW = (rfsuite.app.lcdWidth - padding) / radio.buttonsPerRow - padding
         btnH = radio.navbuttonHeight
         perRow = radio.buttonsPerRow
     elseif icons == 1 then
@@ -84,7 +84,7 @@ local function openPage(idx, title, script)
                 press = function()
                     rfsuite.preferences.menulastselected.logs = i
                     rfsuite.app.ui.progressDisplay()
-                    rfsuite.session.activeLogDir = item.foldername
+                    rfsuite.app.activeLogDir = item.foldername
                     rfsuite.utils.log("Opening logs for: " .. item.foldername, "info")
                     rfsuite.app.ui.openPage(i, "Logs", "logs/logs_logs.lua")
                 end

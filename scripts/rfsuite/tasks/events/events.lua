@@ -23,8 +23,8 @@ local wakeupStep = 0
 local wakeupHandlers = {}
 
 -- List of task module names (must match the .lua filenames)
-local taskNames = { "telemetry", "switches", "flightmode", "stats", "rxmap", "timer" }
-local taskExecutionPercent = 50 -- 50% of tasks will run each cycle
+local taskNames = { "telemetry", "switches", "flightmode", "stats", "rxmap", "flighttimer" }
+local taskExecutionPercent = 100 -- 100% of tasks will run each cycle
 
 -- Dynamically load task modules and populate wakeupHandlers
 for _, name in ipairs(taskNames) do
@@ -33,7 +33,7 @@ for _, name in ipairs(taskNames) do
 end
 
 function events.wakeup()
-    local currentTime = rfsuite.clock
+    local currentTime = os.clock()
 
     if rfsuite.session.isConnected and rfsuite.session.telemetryState then
         if telemetryStartTime == nil then
@@ -61,6 +61,12 @@ end
 
 function events.reset()
     telemetryStartTime = nil
+    for _, name in ipairs(taskNames) do
+        local subtask = events[name]
+        if subtask and type(subtask.reset) == "function" then
+            subtask.reset()
+        end
+    end
 end
 
 return events
