@@ -20,6 +20,25 @@ local utils = {}
 local imageCache = {}
 local fontCache 
 
+
+-- Determine layout and screensize in use
+function utils.isFullScreen(w, h)
+
+    -- Large screens - (X20 / X20RS / X18RS etc) Full/Standard
+    if (w == 800 and (h == 458 or h == 480)) then return true end
+    if (w == 784 and (h == 294 or h == 316)) then return false end
+
+    -- Medium screens (X18 / X18S / TWXLITE) - Full/Standard
+    if (w == 480 and (h == 301 or h == 320)) then return true end
+    if (w == 472 and (h == 191 or h == 210)) then return false end
+
+    -- Small screens - (X14 / X14S) Full/Standard
+    if (w == 640 and (h == 338 or h == 360)) then return true end
+    if (w == 630 and (h == 236 or h == 258)) then return false end
+
+    return nil -- Unknown resolution, assume not fullscreen
+end
+
 --- Checks if the model preferences are ready.
 -- This function returns true if the `rfsuite` table, its `session` field,
 -- and the `modelPreferences` field within `session` are all non-nil.
@@ -127,6 +146,78 @@ function utils.getFontListsForResolution()
 
 end
 
+--- Returns a table of recommended header layout options for the current radio’s screen resolution.
+-- This function detects the radio’s LCD width, then returns a set of standard header options
+-- (such as height and padding values) appropriate for known device resolutions.
+-- These values ensure consistent header spacing, sizing, and alignment for the three supported full-screen
+-- layouts (X20, X18, X14).
+--
+-- The returned table can be used directly as a `header_layout` for dashboard themes, or individual fields
+
+function utils.getHeaderOptions()
+    local W, H = lcd.getWindowSize()
+
+    -- X20/X20RS: 800x480 or 784x294
+    if W == 800 or W == 784 then
+        return {
+            height = 36,
+            font = "FONT_L",
+            batterysegmentpaddingtop = 4,
+            batterysegmentpaddingbottom = 4,
+            batterysegmentpaddingleft = 4,
+            batterysegmentpaddingright = 4,
+            gaugepaddingleft = 25,
+            gaugepaddingright = 26,
+            gaugepaddingbottom = 2,
+            gaugepaddingtop = 2,
+            barpaddingleft = 25,
+            barpaddingright = 28,
+            barpaddingbottom = 2,
+            barpaddingtop = 4,
+            valuepaddingleft = 20,
+            valuepaddingbottom = 20,
+        }
+
+    -- X18/TWXLITE: 480x320 or 472x191
+    elseif W == 480 or W == 472 then
+        return {
+            height = 30,
+            font = "FONT_L",
+            batterysegmentpaddingtop = 4,
+            batterysegmentpaddingbottom = 4,
+            batterysegmentpaddingleft = 4,
+            batterysegmentpaddingright = 4,
+            gaugepaddingleft = 8,
+            gaugepaddingright = 9,
+            gaugepaddingbottom = 2,
+            gaugepaddingtop = 2,
+            barpaddingleft = 15,
+            barpaddingright = 18,
+            barpaddingbottom = 2,
+            barpaddingtop = 2,
+            valuepaddingbottom = 20,
+        }
+    -- X14/X14S: 640x360 or 630x236
+    elseif W == 640 or W == 630 then
+        return {
+            height = 30,
+            font = "FONT_L",
+            batterysegmentpaddingtop = 4,
+            batterysegmentpaddingbottom = 4,
+            batterysegmentpaddingleft = 4,
+            batterysegmentpaddingright = 4,
+            gaugepaddingleft = 21,
+            gaugepaddingright = 23,
+            gaugepaddingbottom = 2,
+            gaugepaddingtop = 2,
+            barpaddingleft = 19,
+            barpaddingright = 21,
+            barpaddingbottom = 2,
+            barpaddingtop = 2,
+            valuepaddingbottom = 20,
+        }
+    end
+end
 
 --- Resets the image cache by removing all entries from the `imageCache` table.
 -- This function iterates over all keys in the `imageCache` table and sets their values to nil,
@@ -207,7 +298,7 @@ function utils.resolveColor(value, variantFactor)
         blue            = {0, 122, 255},
         white           = {255, 255, 255},
         black           = {0, 0, 0},
-        gray            = {90, 90, 90},
+        gray            = {185, 185, 185},
         grey            = {185, 185, 185},
         orange          = {255, 165, 0},
         yellow          = {255, 255, 0},
@@ -234,12 +325,19 @@ function utils.resolveColor(value, variantFactor)
         darkgreen       = {0, 100, 0},
         lightred        = {255, 102, 102},
         darkred         = {139, 0, 0},
+        lightorange     = {255, 200, 100},
         lightblue       = {173, 216, 230},
         darkblue        = {0, 0, 139},
         lightpurple     = {216, 191, 216},
         darkpurple      = {48, 25, 52},
         lightyellow     = {255, 255, 224},
         darkyellow      = {204, 204, 0},
+        lightgrey       = {211, 211, 211},
+        lightgray       = {211, 211, 211},
+        darkgrey        = {90, 90, 90},
+        darkgray        = {90, 90, 90},
+        lmgrey          = {80, 80, 80},
+        darkwhite       = {245, 245, 245},
     }
 
     -- fallback to default 30% if not provided or out of range

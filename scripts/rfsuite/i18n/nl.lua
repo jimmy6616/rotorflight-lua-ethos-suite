@@ -1185,6 +1185,7 @@ return {
       ["fuel"] = "Laad niveau",
       ["smartfuel"] = "Smart Fuel",
       ["rssi"] = "RSSI",
+      ["link"] = "Linkkwaliteit",
       ["adj_val"] = "Adj (Waarde)",
       ["arming_flags"] = "Arming Flags",
       ["current"] = "Stroom",
@@ -1269,7 +1270,8 @@ return {
       ["power"] = "Vermogen",
       ["cell_voltage"] = "Cel voltage",
       ["volts_per_cell"] = "Voltage per cel",
-      ["warning"] = "Waarschuwing"
+      ["warning"] = "Waarschuwing",
+      ["tx_batt"] = "TX Battery"
     },
     ["governor"] = {
       ["UNKNOWN"] = "ONBEKEND",

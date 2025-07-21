@@ -1182,14 +1182,15 @@ return {
       ["cell_count"] = "Cell count",
       ["governor"] = "Governor State",
       ["adj_func"] = "Adj (Function)",
-      ["fuel"] = "Fuel",
+      ["fuel"] = "Charge Level",
       ["smartfuel"] = "Smart Fuel",
       ["rssi"] = "RSSI",
+      ["link"] = "Link Quality",
       ["adj_val"] = "Adj (Value)",
       ["arming_flags"] = "Arming Flags",
       ["current"] = "Current",
       ["throttle_pct"] = "Throttle %",
-      ["consumption"] = "Fuel",
+      ["consumption"] = "Consumption",
       ["pid_profile"] = "PID Profile",
       ["mcu_temp"] = "MCU Temperature",
       ["armdisableflags"] = "Arming Disable"
@@ -1269,7 +1270,8 @@ return {
       ["power"] = "Power",
       ["cell_voltage"] = "Cell Voltage",
       ["volts_per_cell"] = "Volts per cell",
-      ["warning"] = "Warning"
+      ["warning"] = "Warning",
+      ["tx_batt"] = "TX Battery"
     },
     ["governor"] = {
       ["UNKNOWN"] = "UNKNOWN",

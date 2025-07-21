@@ -1185,6 +1185,7 @@ return {
       ["fuel"] = "Kraftstoffstand",
       ["smartfuel"] = "Smart Fuel",
       ["rssi"] = "RSSI",
+      ["link"] = "Verbindungsqualitaet",
       ["adj_val"] = "Adj (Wert)",
       ["arming_flags"] = "Arming-Flags",
       ["current"] = "Strom",
@@ -1269,7 +1270,8 @@ return {
       ["power"] = "Power",
       ["cell_voltage"] = "Zellenspannung",
       ["volts_per_cell"] = "Volt pro Zelle",
-      ["warning"] = "Warnung"
+      ["warning"] = "Warnung",
+      ["tx_batt"] = "TX Battery"
     },
     ["governor"] = {
       ["UNKNOWN"] = "UNBEKANNT",

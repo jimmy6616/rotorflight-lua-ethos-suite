@@ -1185,6 +1185,7 @@ return {
       ["fuel"] = "Carica Livello",
       ["smartfuel"] = "Smart Fuel",
       ["rssi"] = "RSSI",
+      ["link"] = "Qualità Collegamento",
       ["adj_val"] = "Adj (Valore)",
       ["arming_flags"] = "Flags Armo",
       ["current"] = "Corrente",
@@ -1269,7 +1270,8 @@ return {
       ["power"] = "Power",
       ["cell_voltage"] = "Voltaggio Cella",
       ["volts_per_cell"] = "Volts per cella",
-      ["warning"] = "Attenzione"
+      ["warning"] = "Attenzione",
+      ["tx_batt"] = "TX Battery"
     },
     ["governor"] = {
       ["UNKNOWN"] = "SCONOSCIUTO",

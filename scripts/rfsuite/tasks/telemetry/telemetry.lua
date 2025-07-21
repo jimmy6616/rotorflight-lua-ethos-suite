@@ -120,6 +120,30 @@ local sensorTable = {
         mandatory = true,
         stats = true,
         switch_alerts = true,
+        unit = UNIT_PERCENT,
+        unit_string = "%",
+        sensors = {
+            sim = {
+                { appId = 0xF010, subId = 0 },
+            },
+            sport = {
+                { appId = 0xF010, subId = 0 },
+            },
+            crsf = {
+                {crsfId=0x14, subId = 2}
+            },
+            crsfLegacy = {
+                {crsfId=0x14, subIdStart=0, subIdEnd=1}
+            },
+        },
+    },
+
+    -- RSSI Sensors
+    link = {
+        name = i18n("telemetry.sensors.link"),
+        mandatory = true,
+        stats = true,
+        switch_alerts = true,
         unit = UNIT_DB,
         unit_string = "dB",
         sensors = {
@@ -138,10 +162,9 @@ local sensorTable = {
                 { crsfId = 0x14, subIdStart = 0, subIdEnd = 1 },
                 "RSSI 1",   -- fallback for older versions
                 "RSSI 2",
-                "Rx Quality",
             },
         },
-    },
+    },    
 
     -- Arm Flags
     armflags = {
@@ -234,7 +257,7 @@ local sensorTable = {
         name = i18n("telemetry.sensors.current"),
         mandatory = false,
         stats = true,
-        set_telemetry_sensors = 18,
+        set_telemetry_sensors = 4,
         switch_alerts = true,
         unit = UNIT_AMPERE,
         unit_string = "A",
@@ -245,13 +268,13 @@ local sensorTable = {
                   min = 0, max = 300 },
             },
             sport = {
-                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0208 },
-                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0201 },
                 { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0200 },
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0208 },
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x0201 },               
             },
             crsf = {
-                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x1042 },
                 { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x1012 },
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x1042 },                
                 { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x104A },
             },
             crsfLegacy = { "Rx Curr" },

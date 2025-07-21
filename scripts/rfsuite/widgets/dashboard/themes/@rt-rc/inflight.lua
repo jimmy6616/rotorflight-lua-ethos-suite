@@ -9,73 +9,218 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * Note: Some icons have been sourced from https://www.flaticon.com/
-]] --
+]]--
 
-local telemetry = rfsuite.tasks.telemetry
-local utils = rfsuite.widgets.dashboard.utils
 local i18n = rfsuite.i18n.get
-
-local W, H = lcd.getWindowSize()
-local VERSION = system.getVersion() and system.getVersion().board
-local gaugeThickness = 30
-if VERSION == "X18" or VERSION == "X18S" or VERSION == "X14" or VERSION == "X14S" then gaugeThickness = 15 end
+local utils = rfsuite.widgets.dashboard.utils
+local boxes_cache = nil
+local themeconfig = nil
+local lastScreenW = nil
 
 local darkMode = {
-    textcolor   = "white",
-    titlecolor  = "white",
-    bgcolor     = "black",
-    fillcolor   = "green",
-    fillbgcolor = "grey",
-    arcbgcolor  = "lightgrey",
+    textcolor       = "white",
+    titlecolor      = "white",
+    bgcolor         = "black",
+    fillcolor       = "green",
+    fillbgcolor     = "darkgrey",
+    accentcolor     = "white",
+    rssifillcolor   = "green",
+    rssifillbgcolor = "darkgrey",
+    txaccentcolor   = "grey",
+    txfillcolor     = "green",
+    txbgfillcolor   = "darkgrey",
+    bgcolortop =    lcd.RGB(10, 10, 10),
 }
 
 local lightMode = {
-    textcolor   = "black",
-    titlecolor  = "black",
-    bgcolor     = "white",
-    fillcolor   = "green",
-    fillbgcolor = "lightgrey",
-    arcbgcolor  = "darkgrey",
+    textcolor       = "black",
+    titlecolor      = "black",
+    bgcolor         = "white",
+    fillcolor       = "green",
+    fillbgcolor     = "lightgrey",
+    accentcolor     = "darkgrey",
+    rssifillcolor   = "green",
+    rssifillbgcolor = "grey",
+    txaccentcolor   = "darkgrey",
+    txfillcolor     = "green",
+    txbgfillcolor   = "grey",
+    bgcolortop =   "grey"
 }
-
-local colorMode = lcd.darkMode() and darkMode or lightMode
 
 -- User voltage min/max override support
 local function getUserVoltageOverride(which)
   local prefs = rfsuite.session and rfsuite.session.modelPreferences
   if prefs and prefs["system/@rt-rc"] then
     local v = tonumber(prefs["system/@rt-rc"][which])
+    -- Only use override if it is present and different from the default 6S values
+    -- (Defaults: min=18.0, max=25.2)
     if which == "v_min" and v and math.abs(v - 18.0) > 0.05 then return v end
     if which == "v_max" and v and math.abs(v - 25.2) > 0.05 then return v end
   end
   return nil
 end
 
-local layout = {
-    cols = 4,
-    rows = 14,
-    padding = 1,
-    bgcolor = colorMode.bgcolor
+-- alias current mode
+local colorMode = lcd.darkMode() and darkMode or lightMode
+
+-- Theme based configuration settings
+local theme_section = "system/@rt-rc"
+
+local THEME_DEFAULTS = {
+    rpm_min      = 0,
+    rpm_max      = 3000,
+    bec_min      = 3.0,
+    bec_max      = 13.0,
+    esctemp_warn = 90,
+    esctemp_max  = 140,
+    tx_min       = 7.2,
+    tx_warn      = 7.4,
+    tx_max       = 8.4
 }
 
--- BOXES CACHE
+-- Theme Options based on screen width
+local function getThemeOptionKey(W)
+    if     W == 800 then return "ls_full"
+    elseif W == 784 then return "ls_std"
+    elseif W == 640 then return "ss_full"
+    elseif W == 630 then return "ss_std"
+    elseif W == 480 then return "ms_full"
+    elseif W == 472 then return "ms_std"
+    end
+end
+
+-- Theme Options based on screen width
+local themeOptions = {
+    -- Large screens - (X20 / X20RS / X18RS etc) Full/Standard
+    ls_full = { 
+        font = "FONT_XXL", 
+        advfont = "FONT_M", 
+        thickness = 35, 
+        batteryframethickness = 4, 
+        titlepaddingbottom = 15, 
+        valuepaddingleft = 25, 
+        valuepaddingtop = 20, 
+        valuepaddingbottom = 25, 
+        gaugepaddingtop = 20, 
+        gaugepadding = 20,
+    },
+
+    ls_std  = { 
+        font = "FONT_XL", 
+        advfont = "FONT_M", 
+        thickness = 25, 
+        batteryframethickness = 4, 
+        titlepaddingbottom = 0, 
+        valuepaddingleft = 75, 
+        valuepaddingtop = 5, 
+        valuepaddingbottom = 25, 
+        gaugepaddingtop = 5, 
+        gaugepadding = 10,
+    },
+
+    -- Medium screens (X18 / X18S / TWXLITE) - Full/Standard
+    ms_full = { 
+        font = "FONT_XXL", 
+        advfont = "FONT_M", 
+        thickness = 17, 
+        batteryframethickness = 4, 
+        titlepaddingbottom = 0, 
+        valuepaddingleft = 20, 
+        valuepaddingtop = 5, 
+        valuepaddingbottom = 15, 
+        gaugepaddingtop = 5, 
+    },
+
+    ms_std  = { 
+        font = "FONT_XL", 
+        advfont = "FONT_S", 
+        thickness = 10, 
+        batteryframethickness = 2, 
+        titlepaddingbottom = 0, 
+        valuepaddingleft = 20, 
+        valuepaddingtop = 10, 
+        valuepaddingbottom = 25, 
+        gaugepaddingtop = 5, 
+    },
+
+    -- Small screens - (X14 / X14S) Full/Standard
+    ss_full = { 
+        font = "FONT_XL", 
+        advfont = "FONT_M", 
+        thickness = 20,  
+        batteryframethickness = 4, 
+        titlepaddingbottom = 0, 
+        valuepaddingleft = 20, 
+        valuepaddingtop = 5, 
+        valuepaddingbottom = 15, 
+        gaugepaddingtop = 5, 
+    },
+
+    ss_std  = { 
+        font = "FONT_XL", 
+        advfont = "FONT_S", 
+        thickness = 12,  
+        batteryframethickness = 2, 
+        titlepaddingbottom = 0, 
+        valuepaddingleft = 20, 
+        valuepaddingtop = 10, 
+        valuepaddingbottom = 25, 
+        gaugepaddingtop = 5, 
+    },
+}
+
+local function getThemeValue(key)
+    if rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section] then
+        local val = rfsuite.session.modelPreferences[theme_section][key]
+        val = tonumber(val)
+        if val ~= nil then return val end
+    end
+    return THEME_DEFAULTS[key]
+end
+
+-- Caching for boxes
+local lastScreenW = nil
 local boxes_cache = nil
 local themeconfig = nil
+local headeropts = utils.getHeaderOptions()
 
-local function buildBoxes()
-    return {
+-- Theme Layout
+local layout = {
+    cols    = 8,
+    rows    = 14,
+    padding = 2,
+    --showgrid = lcd.RGB(100, 100, 100)  -- or any color you prefer
+}
+
+local header_layout = {
+    height  = headeropts.height,
+    cols    = 7,
+    rows    = 1,
+    padding = 0,
+    --showgrid = lcd.RGB(100, 100, 100)  -- or any color you prefer
+}
+
+-- Boxes
+local function buildBoxes(W)
+    
+    -- Object based options determined by screensize
+    local opts = themeOptions[getThemeOptionKey(W)] or themeOptions.unknown
+
+    return{
         {
             type = "gauge",
             subtype = "arc",
             col = 1, row = 1,
             rowspan = 12,
-            colspan = 2,
+            colspan = 4,
             source = "voltage",
-            thickness = gaugeThickness,
+            gaugepadding = opts.gaugepadding,
+            thickness = opts.thickness,
+            valuepaddingtop = opts.valuepaddingtop,
             font = "FONT_XXL",
             arcbgcolor = colorMode.arcbgcolor,
             title = i18n("widgets.dashboard.voltage"):upper(),
@@ -134,10 +279,12 @@ local function buildBoxes()
         {
             type = "gauge",
             subtype = "arc",
-            col = 3, row = 1,
+            col = 5, row = 1,
+            colspan = 4,
             rowspan = 12,
-            thickness = gaugeThickness,
-            colspan = 2,
+            gaugepadding = opts.gaugepadding,
+            thickness = opts.thickness,
+            valuepaddingtop = opts.valuepaddingtop,
             source = "smartfuel",
             transform = "floor",
             min = 0,
@@ -158,6 +305,7 @@ local function buildBoxes()
         {
             col = 1,
             row = 13,
+            colspan = 2,
             rowspan = 2,
             type = "text",
             subtype = "governor",
@@ -175,8 +323,9 @@ local function buildBoxes()
             textcolor = colorMode.titlecolor,
         },
         {
-            col = 4,
+            col = 7,
             row = 13,
+            colspan = 2,
             rowspan = 2,
             type = "time",
             subtype = "flight",
@@ -185,8 +334,9 @@ local function buildBoxes()
             textcolor = colorMode.titlecolor,
         }, 
         {
-            col = 3,
+            col = 5,
             row = 13,
+            colspan = 2,
             rowspan = 2,
             type = "text",
             subtype = "telemetry",
@@ -198,36 +348,127 @@ local function buildBoxes()
             textcolor = colorMode.titlecolor,
         },    
         {
-            col = 2,
+            col = 3,
             row = 13,
+            colspan = 2,
             rowspan = 2,
             type = "text",
             subtype = "telemetry",
-            source = "rssi",
+            source = "link",
             unit = "dB",
             transform = "floor",
             bgcolor = colorMode.bgcolor,
             titlecolor = colorMode.titlecolor,
             textcolor = colorMode.titlecolor,
-        },    
+        }, 
     }
 end
 
+local header_boxes = {
+-- Craftname
+    { 
+        col = 1, 
+        row = 1, 
+        colspan = 2, 
+        type = "text", 
+        subtype = "craftname",
+        font = headeropts.font, 
+        valuealign = "left", 
+        valuepaddingleft = 5,
+        bgcolor = colorMode.bgcolortop, 
+        titlecolor = colorMode.titlecolor, 
+        textcolor = colorMode.textcolor 
+    },
+
+    -- RF Logo
+    { 
+        col = 3, 
+        row = 1, 
+        colspan = 3, 
+        type = "image", 
+        subtype = "image",
+        bgcolor = colorMode.bgcolortop 
+    },
+
+    -- TX Battery
+    { 
+        col = 6, 
+        row = 1,
+        type = "gauge", 
+        subtype = "bar", 
+        source = "txbatt",
+        font = headeropts.font,
+        battery = true, 
+        batteryframe = true, 
+        hidevalue = true,
+        valuealign = "left", 
+        batterysegments = 4, 
+        batteryspacing = 1, 
+        batteryframethickness  = 2,
+        batterysegmentpaddingtop = headeropts.batterysegmentpaddingtop,
+        batterysegmentpaddingbottom = headeropts.batterysegmentpaddingbottom,
+        batterysegmentpaddingleft = headeropts.batterysegmentpaddingleft,
+        batterysegmentpaddingright = headeropts.batterysegmentpaddingright,
+        gaugepaddingright = headeropts.gaugepaddingright,
+        gaugepaddingleft = headeropts.gaugepaddingleft,
+        gaugepaddingbottom = headeropts.gaugepaddingbottom,
+        gaugepaddingtop = headeropts.gaugepaddingtop,
+        fillbgcolor = colorMode.txbgfillcolor, 
+        bgcolor = colorMode.bgcolortop,
+        accentcolor = colorMode.txaccentcolor, 
+        textcolor = colorMode.textcolor,
+        min = getThemeValue("tx_min"), 
+        max = getThemeValue("tx_max"), 
+        thresholds = {
+            { value = getThemeValue("tx_warn"), fillcolor = "orange" },
+            { value = getThemeValue("tx_max"), fillcolor = colorMode.txfillcolor }
+        }
+    },
+
+    -- RSSI
+    { 
+        col = 7, 
+        row = 1,
+        type = "gauge", 
+        subtype = "step", 
+        source = "rssi",
+        font = "FONT_XS", 
+        stepgap = 2, 
+        stepcount = 5, 
+        decimals = 0,
+        valuealign = "left",
+        barpaddingleft = headeropts.barpaddingleft,
+        barpaddingright = headeropts.barpaddingright,
+        barpaddingbottom = headeropts.barpaddingbottom,
+        barpaddingtop = headeropts.barpaddingtop,
+        valuepaddingleft = headeropts.valuepaddingleft,
+        valuepaddingbottom = headeropts.valuepaddingbottom,
+        bgcolor = colorMode.bgcolortop, 
+        textcolor = colorMode.textcolor, 
+        fillcolor = colorMode.rssifillcolor,
+        fillbgcolor = colorMode.rssifillbgcolor,
+    },
+}
+
 local function boxes()
-    local config = rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences["system/@rt-rc"]
-    if boxes_cache == nil or themeconfig ~= config then
-        boxes_cache = buildBoxes()
+    local config = rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section]
+    local W = lcd.getWindowSize()
+    if boxes_cache == nil or themeconfig ~= config or lastScreenW ~= W then
+        boxes_cache = buildBoxes(W)
         themeconfig = config
+        lastScreenW = W
     end
     return boxes_cache
 end
 
 return {
-    layout = layout,
-    boxes = boxes,
-    scheduler = {
+  layout = layout,
+  boxes = boxes,
+  header_boxes = header_boxes,
+  header_layout = header_layout,
+  scheduler = {
         spread_scheduling = true,         -- (optional: spread scheduling over the interval to avoid spikes in CPU usage) 
         spread_scheduling_paint = false,  -- optional: spread scheduling for paint (if true, paint will be spread over the interval) 
         spread_ratio = 0.5                -- optional: manually override default ratio logic (applies if spread_scheduling is true)
-    }     
+  }    
 }

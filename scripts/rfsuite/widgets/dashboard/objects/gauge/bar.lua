@@ -55,7 +55,14 @@
     batteryframethickness   : number    -- (Optional) Battery frame outline thickness (default: 2)
     batterysegments         : number    -- (Optional) Number of segments for segmented battery bar (default: 6)
     batteryspacing          : number    -- (Optional) Spacing (pixels) between battery segments (default: 2)
+    batterysegmentpaddingtop    : number   -- (Optional) Padding (pixels) from the top of each horizontal segment (default: 0)
+    batterysegmentpaddingbottom : number   -- (Optional) Padding (pixels) from the bottom of each horizontal segment (default: 0)
     accentcolor             : color     -- (Optional) Color for the battery frame and cap (theme fallback)
+    cappaddingleft        : number   -- (Optional) Padding from the left edge of the cap (default: 0)
+    cappaddingright       : number   -- (Optional) Padding from the right edge of the cap (default: 0)
+    cappaddingtop         : number   -- (Optional) Padding from the top edge of the cap (default: 0)
+    cappaddingbottom      : number   -- (Optional) Padding from the bottom edge of the cap (default: 0)
+
 
     -- Battery Advanced Info (Optional overlay for battery/fuel bar)
     battadv         : bool      -- (Optional) If true, shows advanced battery/fuel telemetry info lines (voltage, per-cell voltage, consumption, cell count)
@@ -68,6 +75,15 @@
     battadvpaddingtop       : number    -- Padding (pixels) above the first info line (overrides battadvpadding)
     battadvpaddingbottom    : number    -- Padding (pixels) below the last info line (overrides battadvpadding)
     battadvgap              : number    -- Vertical gap (pixels) between info lines (default: 5)
+
+    -- Subtext
+    subtext              : string   -- (Optional) A line of subtext to draw inside the bar (usually below value)
+    subtextfont          : font     -- (Optional) Font for subtext (default: FONT_XS)
+    subtextalign         : string   -- (Optional) "center", "left", or "right" (default: "left")
+    subtextpaddingleft   : number   -- (Optional) Padding from left edge of bar (default: 0)
+    subtextpaddingright  : number   -- (Optional) Padding from right edge of bar (default: 0)
+    subtextpaddingtop    : number   -- (Optional) Extra offset from top of bar (default: 0)
+    subtextpaddingbottom : number   -- (Optional) Padding above bottom of bar (default: 0)
 ]]
 
 local render = {}
@@ -113,7 +129,18 @@ local function drawFilledRoundedRectangle(x, y, w, h, r)
     end
 end
 
-local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegments, batteryspacing, fillbgcolor, fillcolor, batteryframe, batteryframethickness, accentcolor, battery)
+local function drawBatteryBox(
+    x, y, w, h,
+    percent,
+    gaugeorientation,
+    batterysegments, batteryspacing,
+    fillbgcolor, fillcolor,
+    batteryframe, batteryframethickness, accentcolor, battery,
+    batterysegmentpaddingtop, batterysegmentpaddingbottom,
+    batterysegmentpaddingleft, batterysegmentpaddingright,
+    cappaddingleft, cappaddingright, cappaddingtop, cappaddingbottom
+)
+
     local frameThickness = batteryframethickness or 4
     local segments = batterysegments or 5
     local spacing = batteryspacing or 2
@@ -123,19 +150,19 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
         if batteryframe then
             local maxCapH = math.floor(h * 0.5)
             capH = math.min(math.max(8, math.floor(h * 0.10)), maxCapH)
-            -- draw cap
+            -- Draw cap at top
+            lcd.color(accentcolor)
+            local capW = math.min(math.max(4, math.floor(w * 0.40)), w)
+            local capX = x + math.floor((w - capW) / 2 + 0.5) + (cappaddingleft or 0)
+            local capY = y + (cappaddingtop or 0)
+            local capWFinal = capW - (cappaddingleft or 0) - (cappaddingright or 0)
+            local capHFinal = capH - (cappaddingtop or 0) - (cappaddingbottom or 0)
+            for i = 0, frameThickness - 1 do
+                lcd.drawFilledRectangle(capX - i, capY + i, capWFinal + 2 * i, capHFinal - i)
+            end
         end
         local bodyY = y + capH
         local bodyH = h - capH
-
-        -- Draw cap at top inside widget
-        if batteryframe then
-            lcd.color(accentcolor)
-            local capW = math.min(math.max(4, math.floor(w * 0.40)), w)
-            for i = 0, frameThickness - 1 do
-                lcd.drawFilledRectangle(x + (w - capW) / 2 - i, y + i, capW + 2 * i, capH - i)
-            end
-        end
 
         -- Draw body/frame
         if battery then
@@ -177,10 +204,18 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
             local fillSegs = math.floor(segCount * percent + 0.5)
             local totalSpacing = (segCount - 1) * spacing
             local segW = (bodyW - totalSpacing) / segCount
+            local segPadT = batterysegmentpaddingtop or 0
+            local segPadB = batterysegmentpaddingbottom or 0
+            local segHeight = h - segPadT - segPadB
+            local segPadL = batterysegmentpaddingleft or 0
+            local segPadR = batterysegmentpaddingright or 0
+            local segAvailW = bodyW - segPadL - segPadR
+            local segW = (segAvailW - totalSpacing) / segCount
+
             for i = 1, segCount do
-                local segX = x + (i - 1) * (segW + spacing)
+                local segX = x + segPadL + (i - 1) * (segW + spacing)
                 lcd.color(i <= fillSegs and fillcolor or fillbgcolor)
-                lcd.drawFilledRectangle(segX, y, segW, h)
+                lcd.drawFilledRectangle(segX, y + segPadT, segW, segHeight)
             end
         else
             lcd.color(fillbgcolor)
@@ -198,8 +233,13 @@ local function drawBatteryBox(x, y, w, h, percent, gaugeorientation, batterysegm
             lcd.drawRectangle(x, y, bodyW, h, frameThickness)
             local capW = capOffset
             local capH = math.min(math.max(4, math.floor(h * 0.33)), h)
+            -- Cap is vertically centered, right of bar
+            local capX = x + bodyW + (cappaddingleft or 0)
+            local capY = y + math.floor((h - capH) / 2 + 0.5) + (cappaddingtop or 0)
+            local capWFinal = capW - (cappaddingleft or 0) - (cappaddingright or 0)
+            local capHFinal = capH - (cappaddingtop or 0) - (cappaddingbottom or 0)
             for i = 0, frameThickness - 1 do
-                lcd.drawFilledRectangle(x + bodyW + i, y + (h - capH) / 2 + i, capW, capH - 2 * i)
+                lcd.drawFilledRectangle(capX + i, capY + i, capWFinal, capHFinal - 2 * i)
             end
         end
     end
@@ -212,8 +252,15 @@ function render.wakeup(box)
     -- Value extraction
     local source = getParam(box, "source")
     local value, _, dynamicUnit
-    if telemetry and source then
+
+    if source == "txbatt" then
+        local src = system.getSource({ category = CATEGORY_SYSTEM, member = MAIN_VOLTAGE })
+        value = src and src.value and src:value() or nil
+        dynamicUnit = "V"
+    elseif telemetry and source then
         value, _, dynamicUnit = telemetry.getSensor(source)
+    else
+        value = getParam(box, "value")
     end
 
     -- Battery Advanced value extraction
@@ -249,8 +296,14 @@ function render.wakeup(box)
     end
 
     -- Resolve bar min/max
-    local min = getParam(box, "min") or 0
-    local max = getParam(box, "max") or 100
+    local min, max
+    if source == "txbatt" then
+        min = getParam(box, "min") or 7.2
+        max = getParam(box, "max") or 8.4
+    else
+        min = getParam(box, "min") or 0
+        max = getParam(box, "max") or 100
+    end
 
     -- Calculate percent fill for the gauge (clamped 0-1)
     local percent = 0
@@ -365,6 +418,10 @@ function render.wakeup(box)
         batteryframethickness    = getParam(box, "batteryframethickness"),
         batterysegments          = getParam(box, "batterysegments"),
         batteryspacing           = getParam(box, "batteryspacing"),
+        batterysegmentpaddingleft   = getParam(box, "batterysegmentpaddingleft") or 0,
+        batterysegmentpaddingright  = getParam(box, "batterysegmentpaddingright") or 0,
+        batterysegmentpaddingtop    = getParam(box, "batterysegmentpaddingtop") or 0,
+        batterysegmentpaddingbottom = getParam(box, "batterysegmentpaddingbottom") or 0,
         battadvfont              = getParam(box, "battadvfont") or "FONT_S",
         battadvblockalign        = getParam(box, "battadvblockalign") or "right",
         battadvvaluealign        = getParam(box, "battadvvaluealign") or "left",
@@ -375,6 +432,17 @@ function render.wakeup(box)
         battadvpaddingbottom     = getParam(box, "battadvpaddingbottom") or 0,
         battadvgap               = getParam(box, "battadvgap") or 5,
         battstats                = getParam(box, "battstats") or false,
+        subtext                  = getParam(box, "subtext"),
+        subtextfont              = getParam(box, "subtextfont") or "FONT_XS",
+        subtextalign             = getParam(box, "subtextalign") or "left",
+        subtextpaddingleft       = getParam(box, "subtextpaddingleft") or 0,
+        subtextpaddingright      = getParam(box, "subtextpaddingright") or 0,
+        subtextpaddingtop        = getParam(box, "subtextpaddingtop") or 0,
+        subtextpaddingbottom     = getParam(box, "subtextpaddingbottom") or 0,
+        cappaddingleft           = getParam(box, "cappaddingleft") or 0,
+        cappaddingright          = getParam(box, "cappaddingright") or 0,
+        cappaddingtop            = getParam(box, "cappaddingtop") or 0,
+        cappaddingbottom         = getParam(box, "cappaddingbottom") or 0,
     }
 end
 
@@ -399,14 +467,12 @@ function render.paint(x, y, w, h, box)
             gauge_x, gauge_y, gauge_w, gauge_h,
             c.percent,
             c.gaugeorientation,
-            c.batterysegments,
-            c.batteryspacing,
-            c.fillbgcolor,
-            c.fillcolor,
-            c.batteryframe,
-            c.batteryframethickness,
-            c.accentcolor,
-            c.battery
+            c.batterysegments, c.batteryspacing,
+            c.fillbgcolor, c.fillcolor,
+            c.batteryframe, c.batteryframethickness, c.accentcolor, c.battery,
+            c.batterysegmentpaddingtop, c.batterysegmentpaddingbottom,
+            c.batterysegmentpaddingleft, c.batterysegmentpaddingright,
+            c.cappaddingleft, c.cappaddingright, c.cappaddingtop, c.cappaddingbottom
         )
     else
         -- Standard bar background
@@ -419,21 +485,51 @@ function render.paint(x, y, w, h, box)
             if c.gaugeorientation == "vertical" then
                 local fillH = math.floor(gauge_h * c.percent)
                 local fillY = gauge_y + gauge_h - fillH
-                drawFilledRoundedRectangle(gauge_x, fillY, gauge_w, fillH, c.roundradius)
+                lcd.setClipping(gauge_x, fillY, gauge_w, fillH)
+                drawFilledRoundedRectangle(gauge_x, gauge_y, gauge_w, gauge_h, c.roundradius)
+                lcd.setClipping()
             else
                 local fillW = math.floor(gauge_w * c.percent)
-                drawFilledRoundedRectangle(gauge_x, gauge_y, fillW, gauge_h, c.roundradius)
+                if fillW > 0 then
+                    lcd.setClipping(gauge_x, gauge_y, fillW, gauge_h)
+                    drawFilledRoundedRectangle(gauge_x, gauge_y, gauge_w, gauge_h, c.roundradius)
+                    lcd.setClipping()
+                end
             end
         end
     end
 
+    if c.subtext and c.subtext ~= "" then
+        lcd.font(_G[c.subtextfont] or FONT_XS)
+        lcd.color(c.textcolor)
+        local textW, textH = lcd.getTextSize(c.subtext)
+        local sy = gauge_y + gauge_h - textH - c.subtextpaddingbottom
+        local sx
+        if c.subtextalign == "right" then
+            sx = gauge_x + gauge_w - textW - c.subtextpaddingright
+        elseif c.subtextalign == "center" then
+            sx = gauge_x + math.floor((gauge_w - textW) / 2 + 0.5)
+        else
+            sx = gauge_x + c.subtextpaddingleft
+        end
+        sy = sy + c.subtextpaddingtop
+        lcd.drawText(sx, sy, c.subtext)
+    end
+
+
     -- Draw title and value
+    local boxValue = c.displayValue
+    local boxUnit = c.unit
+    if c.hidevalue then
+        boxValue = nil
+        boxUnit = nil
+    end
     utils.box(
         x, y, w, h,
         c.title, c.titlepos, c.titlealign, c.titlefont, c.titlespacing,
         c.titlecolor, c.titlepadding, c.titlepaddingleft, c.titlepaddingright,
         c.titlepaddingtop, c.titlepaddingbottom,
-        c.displayValue, c.unit, c.font, c.valuealign, c.textcolor,
+        boxValue, boxUnit, c.font, c.valuealign, c.textcolor,
         c.valuepadding, c.valuepaddingleft, c.valuepaddingright,
         c.valuepaddingtop, c.valuepaddingbottom,
         nil
