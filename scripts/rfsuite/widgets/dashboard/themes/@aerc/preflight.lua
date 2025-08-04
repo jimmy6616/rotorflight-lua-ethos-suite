@@ -17,50 +17,9 @@
 
 local i18n = rfsuite.i18n.get
 local utils = rfsuite.widgets.dashboard.utils
-local boxes_cache = nil
-local themeconfig = nil
-local lastScreenW = nil
 
-local darkMode = {
-    textcolor       = "white",
-    titlecolor      = "white",
-    bgcolor         = "black",
-    fillcolor       = "green",
-    fillwarncolor   = "orange",
-    fillcritcolor   = "red",
-    fillbgcolor     = "grey",
-    accentcolor     = "white",
-    rssifillcolor   = "green",
-    rssifillbgcolor = "darkgrey",
-    txaccentcolor   = "grey",
-    txfillcolor     = "green",
-    txbgfillcolor   = "darkgrey",
-    bgcolortop      = "black",
-    cntextcolor     = "white",
-    rssitextcolor   = "white"
-}
-
-local lightMode = {
-    textcolor       = "lmgrey",
-    titlecolor      = "lmgrey",
-    bgcolor         = "white",
-    fillcolor       = "lightgreen",
-    fillwarncolor   = "lightorange",
-    fillcritcolor   = "lightred",
-    fillbgcolor     = "lightgrey",
-    accentcolor     = "darkgrey",
-    rssifillcolor   = "lightgreen",
-    rssifillbgcolor = "grey",
-    txaccentcolor   = "white",
-    txfillcolor     = "lightgreen",
-    txbgfillcolor   = "grey",
-    bgcolortop      = "darkgrey",
-    cntextcolor     = "white",
-    rssitextcolor   = "white"
-}
-
--- alias current mode
-local colorMode = lcd.darkMode() and darkMode or lightMode
+local headeropts = utils.getHeaderOptions()
+local colorMode = utils.themeColors()
 
 -- Theme based configuration settings
 local theme_section = "system/@aerc"
@@ -73,10 +32,24 @@ local THEME_DEFAULTS = {
     bec_max      = 13.0,
     esctemp_warn = 90,
     esctemp_max  = 140,
-    tx_min       = 7.2,
-    tx_warn      = 7.4,
-    tx_max       = 8.4
 }
+
+local function getThemeValue(key)
+    -- Use General preferences for TX values
+    if key == "tx_min" or key == "tx_warn" or key == "tx_max" then
+        if rfsuite and rfsuite.preferences and rfsuite.preferences.general then
+            local val = rfsuite.preferences.general[key]
+            if val ~= nil then return tonumber(val) end
+        end
+    end
+    -- Theme defaults for other values
+    if rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section] then
+        local val = rfsuite.session.modelPreferences[theme_section][key]
+        val = tonumber(val)
+        if val ~= nil then return val end
+    end
+    return THEME_DEFAULTS[key]
+end
 
 -- Theme Options based on screen width
 local function getThemeOptionKey(W)
@@ -94,105 +67,115 @@ local themeOptions = {
     -- Large screens - (X20 / X20RS / X18RS etc) Full/Standard
     ls_full = { 
         font = "FONT_XXL", 
-        advfont = "FONT_M", 
-        thickness = 25, 
+        advfont = "FONT_M",
+        titlefont = "FONT_XXS", 
+        thickness = 32, 
         batteryframethickness = 4, 
-        titlepaddingbottom = 15, 
+        titlepaddingbottom = 25, 
         valuepaddingleft = 25, 
-        valuepaddingtop = 20, 
-        valuepaddingbottom = 25, 
+        valuepaddingtop = 20,
+        gvaluepaddingtop = 30,
+        valuepaddingbottom = 25,
+        brvaluepaddingbottom = 20,
         gaugepaddingtop = 20, 
-        battadvpaddingtop = 20, 
-        brvaluepaddingtop = 25
+        battadvpaddingtop = 20,
+        cappaddingright = 4 
     },
 
     ls_std  = { 
         font = "FONT_XL", 
-        advfont = "FONT_M", 
-        thickness = 15, 
-        batteryframethickness = 4, 
-        titlepaddingbottom = 0, 
-        valuepaddingleft = 75, 
-        valuepaddingtop = 5, 
-        valuepaddingbottom = 25, 
+        advfont = "FONT_M",
+        titlefont = "FONT_XXS",  
+        thickness = 18, 
+        batteryframethickness = 3, 
+        titlepaddingbottom = 25, 
+        valuepaddingleft = 55, 
+        valuepaddingtop = 5,
+        gvaluepaddingtop = 20, 
+        valuepaddingbottom = 25,
+        brvaluepaddingbottom = 15, 
         gaugepaddingtop = 5, 
-        battadvpaddingtop = 5, 
-        brvaluepaddingtop = 10
+        battadvpaddingtop = 8,
+        cappaddingright = 5 
     },
 
     -- Medium screens (X18 / X18S / TWXLITE) - Full/Standard
     ms_full = { 
         font = "FONT_XXL", 
-        advfont = "FONT_M", 
-        thickness = 17, 
-        batteryframethickness = 4, 
-        titlepaddingbottom = 0, 
+        advfont = "FONT_M",
+        titlefont = "FONT_XXS", 
+        thickness = 19, 
+        batteryframethickness = 3, 
+        titlepaddingbottom = 20, 
         valuepaddingleft = 20, 
-        valuepaddingtop = 5, 
-        valuepaddingbottom = 15, 
+        valuepaddingtop = 10,
+        gvaluepaddingtop = 20, 
+        valuepaddingbottom = 25, 
+        brvaluepaddingbottom = 15,
         gaugepaddingtop = 5, 
-        battadvpaddingtop = 5, 
-        brvaluepaddingtop = 20
+        battadvpaddingtop = 2,
+        cappaddingright = 2 
     },
 
     ms_std  = { 
         font = "FONT_XL", 
-        advfont = "FONT_S", 
-        thickness = 10, 
+        advfont = "FONT_S",
+        titlefont = "FONT_XXS", 
+        thickness = 14, 
         batteryframethickness = 2, 
-        titlepaddingbottom = 0, 
+        titlepaddingbottom = 10, 
         valuepaddingleft = 20, 
-        valuepaddingtop = 10, 
-        valuepaddingbottom = 25, 
+        valuepaddingtop = 10,
+        gvaluepaddingtop = 20, 
+        valuepaddingbottom = 25,
+        brvaluepaddingbottom = 15,
         gaugepaddingtop = 5, 
-        battadvpaddingtop = 0, 
-        brvaluepaddingtop = 10
+        battadvpaddingtop = 3,
+        cappaddingright = 3
     },
 
     -- Small screens - (X14 / X14S) Full/Standard
     ss_full = { 
         font = "FONT_XL", 
-        advfont = "FONT_M", 
-        thickness = 20,  
-        batteryframethickness = 4, 
-        titlepaddingbottom = 0, 
+        advfont = "FONT_M",
+        titlefont = "FONT_XXS",  
+        thickness = 25,  
+        batteryframethickness = 3, 
+        titlepaddingbottom = 15, 
         valuepaddingleft = 20, 
-        valuepaddingtop = 5, 
-        valuepaddingbottom = 15, 
+        valuepaddingtop = 10,
+        gvaluepaddingtop = 25, 
+        valuepaddingbottom = 15,
+        brvaluepaddingbottom = 15, 
         gaugepaddingtop = 5, 
-        battadvpaddingtop = 5, 
-        brvaluepaddingtop = 10
+        battadvpaddingtop = 5,
+        cappaddingright = 3
     },
 
     ss_std  = { 
         font = "FONT_XL", 
-        advfont = "FONT_S", 
-        thickness = 12,  
+        advfont = "FONT_S",
+        titlefont = "FONT_XXS", 
+        thickness = 14,  
         batteryframethickness = 2, 
-        titlepaddingbottom = 0, 
+        titlepaddingbottom = 15, 
         valuepaddingleft = 20, 
-        valuepaddingtop = 10, 
-        valuepaddingbottom = 25, 
+        valuepaddingtop = 10,
+        gvaluepaddingtop = 15, 
+        valuepaddingbottom = 25,
+        brvaluepaddingbottom = 20, 
         gaugepaddingtop = 5, 
-        battadvpaddingtop = 0, 
-        brvaluepaddingtop = 10
+        battadvpaddingtop = 0,
+        cappaddingright = 3 
     },
 }
-
-local function getThemeValue(key)
-    if rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section] then
-        local val = rfsuite.session.modelPreferences[theme_section][key]
-        val = tonumber(val)
-        if val ~= nil then return val end
-    end
-    return THEME_DEFAULTS[key]
-end
 
 -- Caching for boxes
 local lastScreenW = nil
 local boxes_cache = nil
+local header_boxes_cache = nil
 local themeconfig = nil
-local headeropts = utils.getHeaderOptions()
+local last_txbatt_type = nil
 
 -- Theme Layout
 local layout = {
@@ -200,11 +183,23 @@ local layout = {
     rows    = 12,
 }
 
-local header_layout = {
-    height  = headeropts.height,
-    cols    = 7,
-    rows    = 1,
-}
+-- Header Layout
+local header_layout = utils.standardHeaderLayout(headeropts)
+
+-- Header Boxes
+local function header_boxes()
+    local txbatt_type = 0
+    if rfsuite and rfsuite.preferences and rfsuite.preferences.general then
+        txbatt_type = rfsuite.preferences.general.txbatt_type or 0
+    end
+
+    -- Rebuild cache if type changed
+    if header_boxes_cache == nil or last_txbatt_type ~= txbatt_type then
+        header_boxes_cache = utils.standardHeaderBoxes(i18n, colorMode, headeropts, txbatt_type)
+        last_txbatt_type = txbatt_type
+    end
+    return header_boxes_cache
+end
 
 -- Boxes
 local function buildBoxes(W)
@@ -218,7 +213,7 @@ local function buildBoxes(W)
             col = 1, 
             row = 1, 
             colspan = 3, 
-            rowspan = 9, 
+            rowspan = 10, 
             type = "image", 
             subtype = "model", 
             bgcolor = colorMode.bgcolor
@@ -227,15 +222,16 @@ local function buildBoxes(W)
         -- Rates
         {
             col = 1, 
-            row = 10, 
-            rowspan = 3,
+            row = 11, 
+            rowspan = 2,
             type = "text", 
             subtype = "telemetry", 
             source = "rate_profile",
             title = i18n("widgets.dashboard.rates"):upper(), 
             titlepos = "bottom",
             font = "FONT_XL",
-            valuepaddingtop = opts.brvaluepaddingtop,
+            titlefont = opts.titlefont,
+            valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor,
             transform = "floor",
@@ -249,15 +245,16 @@ local function buildBoxes(W)
         -- PID
         {
             col = 2, 
-            row = 10, 
-            rowspan = 3,
+            row = 11, 
+            rowspan = 2,
             type = "text", 
             subtype = "telemetry", 
             source = "pid_profile",
             title = i18n("widgets.dashboard.profile"):upper(), 
             titlepos = "bottom",
             font = "FONT_XL",
-            valuepaddingtop = opts.brvaluepaddingtop,
+            titlefont = opts.titlefont,
+            valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor,
             transform = "floor",
@@ -271,14 +268,15 @@ local function buildBoxes(W)
         -- Flights
         {
             col = 3, 
-            row = 10, 
-            rowspan = 3,
+            row = 11, 
+            rowspan = 2,
             type = "time", 
             subtype = "count",
             title = i18n("widgets.dashboard.flights"):upper(), 
             titlepos = "bottom",
             font = "FONT_XL",
-            valuepaddingtop = opts.brvaluepaddingtop,
+            titlefont = opts.titlefont,
+            valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor, 
             textcolor = colorMode.textcolor,
@@ -306,7 +304,8 @@ local function buildBoxes(W)
             valuepaddingtop = opts.valuepaddingtop,
             gaugepaddingtop = opts.gaugepaddingtop, 
             battadvfont = opts.advfont, 
-            battadvpaddingtop = opts.battadvpaddingtop, 
+            battadvpaddingtop = opts.battadvpaddingtop,
+            cappaddingright = opts.cappaddingright, 
             fillcolor = colorMode.fillcolor,
             bgcolor = colorMode.bgcolor,
             titlecolor = colorMode.titlecolor, 
@@ -315,7 +314,7 @@ local function buildBoxes(W)
             transform = "floor",
             thresholds = {
                 { value = 10, fillcolor = colorMode.fillcritcolor },
-                { value = 30, fillcolor = colorMode.fillwarncolor }
+                { value = 45, fillcolor = colorMode.fillwarncolor }
             }
         },
 
@@ -324,7 +323,7 @@ local function buildBoxes(W)
             col = 4, 
             colspan = 2, 
             row = 4, 
-            rowspan = 6,
+            rowspan = 7,
             type = "gauge", 
             subtype = "arc", 
             source = "bec_voltage",
@@ -332,6 +331,7 @@ local function buildBoxes(W)
             titlepos = "bottom",
             decimals = 1,         
             titlepaddingbottom = opts.titlepaddingbottom,
+            valuepaddingtop = opts.gvaluepaddingtop,
             font = opts.font,
             min = getThemeValue("bec_min"), 
             max = getThemeValue("bec_max"),
@@ -349,18 +349,19 @@ local function buildBoxes(W)
         -- Blackbox
         {
             col = 4, 
-            row = 10, 
+            row = 11, 
             colspan = 2, 
-            rowspan = 3,
+            rowspan = 2,
             type = "text", 
             subtype = "blackbox",
             title = i18n("widgets.dashboard.blackbox"):upper(), 
             titlepos = "bottom",
-            font = "FONT_XL", 
+            font = "FONT_XL",
+            titlefont = opts.titlefont, 
+            valuepaddingbottom = opts.brvaluepaddingbottom,
             decimals = 0,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor,
-            valuepaddingtop = opts.brvaluepaddingtop,
             transform = "floor", 
             thresholds = {
                 { value = 80, textcolor = colorMode.textcolor },
@@ -374,7 +375,7 @@ local function buildBoxes(W)
             col = 6, 
             colspan = 2, 
             row = 4, 
-            rowspan = 6,
+            rowspan = 7,
             type = "gauge", 
             subtype = "arc", 
             source = "temp_esc",
@@ -390,6 +391,7 @@ local function buildBoxes(W)
             titlecolor = colorMode.titlecolor, 
             textcolor = colorMode.textcolor,
             titlepaddingbottom = opts.titlepaddingbottom,
+            valuepaddingtop = opts.gvaluepaddingtop,
             transform = "floor",
             thresholds = {
                 { value = getThemeValue("esctemp_warn"), fillcolor = colorMode.fillcolor },
@@ -401,15 +403,16 @@ local function buildBoxes(W)
         -- Governor
         {
             col = 6, 
-            row = 10, 
+            row = 11, 
             colspan = 2, 
-            rowspan = 3,
+            rowspan = 2,
             type = "text", 
             subtype = "governor",
             title = i18n("widgets.dashboard.governor"):upper(), 
             titlepos = "bottom",
             font = "FONT_XL",
-            valuepaddingtop = opts.brvaluepaddingtop,
+            titlefont = opts.titlefont,
+            valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor,
             thresholds = {
@@ -424,92 +427,6 @@ local function buildBoxes(W)
         }
     }
 end
-
-local header_boxes = {
--- Craftname
-    { 
-        col = 1, 
-        row = 1, 
-        colspan = 2, 
-        type = "text", 
-        subtype = "craftname",
-        font = headeropts.font, 
-        valuealign = "left", 
-        valuepaddingleft = 5,
-        bgcolor = colorMode.bgcolortop,
-        titlecolor = colorMode.titlecolor, 
-        textcolor = colorMode.cntextcolor 
-    },
-
-    -- RF Logo
-    { 
-        col = 3, 
-        row = 1, 
-        colspan = 3, 
-        type = "image", 
-        subtype = "image",
-        bgcolor = colorMode.bgcolortop,
-    },
-
-    -- TX Battery
-    { 
-        col = 6, 
-        row = 1,
-        type = "gauge", 
-        subtype = "bar", 
-        source = "txbatt",
-        font = headeropts.font,
-        battery = true, 
-        batteryframe = true, 
-        hidevalue = true,
-        valuealign = "left", 
-        batterysegments = 4, 
-        batteryspacing = 1, 
-        batteryframethickness  = 2,
-        batterysegmentpaddingtop = headeropts.batterysegmentpaddingtop,
-        batterysegmentpaddingbottom = headeropts.batterysegmentpaddingbottom,
-        batterysegmentpaddingleft = headeropts.batterysegmentpaddingleft,
-        batterysegmentpaddingright = headeropts.batterysegmentpaddingright,
-        gaugepaddingright = headeropts.gaugepaddingright,
-        gaugepaddingleft = headeropts.gaugepaddingleft,
-        gaugepaddingbottom = headeropts.gaugepaddingbottom,
-        gaugepaddingtop = headeropts.gaugepaddingtop,
-        fillbgcolor = colorMode.txbgfillcolor, 
-        bgcolor = colorMode.bgcolortop,
-        accentcolor = colorMode.txaccentcolor, 
-        textcolor = colorMode.textcolor,
-        min = getThemeValue("tx_min"), 
-        max = getThemeValue("tx_max"), 
-        thresholds = {
-            { value = getThemeValue("tx_warn"), fillcolor = colorMode.fillwarncolor },
-            { value = getThemeValue("tx_max"), fillcolor = colorMode.txfillcolor }
-        }
-    },
-
-    -- RSSI
-    { 
-        col = 7, 
-        row = 1,
-        type = "gauge", 
-        subtype = "step", 
-        source = "rssi",
-        font = "FONT_XS", 
-        stepgap = 2, 
-        stepcount = 5, 
-        decimals = 0,
-        valuealign = "left",
-        barpaddingleft = headeropts.barpaddingleft,
-        barpaddingright = headeropts.barpaddingright,
-        barpaddingbottom = headeropts.barpaddingbottom,
-        barpaddingtop = headeropts.barpaddingtop,
-        valuepaddingleft = headeropts.valuepaddingleft,
-        valuepaddingbottom = headeropts.valuepaddingbottom,
-        bgcolor = colorMode.bgcolortop,
-        textcolor = colorMode.rssitextcolor, 
-        fillcolor = colorMode.rssifillcolor,
-        fillbgcolor = colorMode.rssifillbgcolor,
-    },
-}
 
 local function boxes()
     local config = rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section]

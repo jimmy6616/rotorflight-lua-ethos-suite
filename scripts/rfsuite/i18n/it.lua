@@ -249,6 +249,16 @@ return {
     ["PILOT_CONFIG"] = {
       ["model_param1_value"] = "Reglez cette valeur sur la duree de vol prevue, en secondes. La radiocommande emettra un bip lorsque cette duree sera atteinte."
     },
+    ["BATTERY_INI"] = {
+      ["calcfuel_local"] = "Calculate Fuel Using",
+      ["tbl_off"] = "Current Sensor",
+      ["tbl_on"] = "Voltage Sensor",
+      ["sag_multiplier"] = "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      ["kalman_multiplier"] = "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      ["alert_off"] = "Off",
+      ["alert_bec"] = "BEC",
+      ["alert_rxbatt"] = "Rx Batt"
+    },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "La tensione minima per cella prima che scatti l'allarme di bassa tensione.",
       ["vbatmaxcellvoltage"] = "La tensione massima per cella prima che scatti l'allarme di alta tensione.",
@@ -426,6 +436,10 @@ return {
         ["txt_mspdata"] = "Log msp data",
         ["txt_queuesize"] = "Dimensione Coda Log MSP",
         ["txt_memusage"] = "Uso Memoria Log",
+        ["txt_batttype"] = "Tx Battery Options",
+        ["txt_battdef"] = "Default",
+        ["txt_batttext"] = "Text",
+        ["txt_battdig"] = "Digital",
         ["dashboard"] = "Dashboard",
         ["dashboard_theme"] = "Tema",
         ["dashboard_theme_panel_global"] = "Globale",
@@ -796,6 +810,7 @@ return {
         ["help_logs_p3"] = "- stato armo, voltaggio, Vel.Rotore, corrente, esc temperatura"
       },
       ["battery"] = {
+        ["calcfuel_local"] = "Calculate fuel using",
         ["max_cell_voltage"] = "Voltaggio Max Cella",
         ["full_cell_voltage"] = "Voltaggio Cella pieno",
         ["name"] = "Batteria",
@@ -805,7 +820,12 @@ return {
         ["warn_cell_voltage"] = "Avviso tensione cella",
         ["cell_count"] = "Conto Celle",
         ["consumption_warning_percentage"] = "Avviso Consumo %",
-        ["timer"] = "Tempo Volo"
+        ["timer"] = "Tempo Volo",
+        ["voltage_multiplier"] = "Compensazione di caduta",
+        ["kalman_multiplier"] = "Filter compensation",
+        ["alert_type"] = "BEC or Rx Batt Voltage Alert",
+        ["bec_voltage_alert"] = "BEC Alert Value",
+        ["rx_voltage_alert"] = "RX Batt Alert Value"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Guadagno",
@@ -964,6 +984,8 @@ return {
         ["help_p1"] = "Questa pagina fornisce alcune informazioni utili che potrebbero esserti richieste quando richiedi assistenza.",
         ["msgbox_credits"] = "Crediti",
         ["ethos_version"] = "Versione Ethos",
+        ["rf_version"] = "Versione Rotorflight",
+        ["fc_version"] = "Versione FC",
         ["name"] = "A Proposito",
         ["supported_versions"] = "Versioni MSP Supportate",
         ["license"] = "e' possibile copiare, distribuire e modificare il software a condizione di tenere traccia delle modifiche/date nei file sorgente. Qualsiasi modifica o software che includa (tramite compilatore) codice con licenza GPL deve essere reso disponibile anche sotto la GPL insieme alle istruzioni di compilazione e installazione.",
@@ -1191,6 +1213,7 @@ return {
       ["current"] = "Corrente",
       ["throttle_pct"] = "Acceleratore %",
       ["consumption"] = "Consumo",
+      ["smartconsumption"] = "Consumo Intelligente",
       ["pid_profile"] = "Profilo PID",
       ["mcu_temp"] = "Temperatura MCU",
       ["armdisableflags"] = "Disattivazione Armo"
@@ -1219,7 +1242,6 @@ return {
       ["unsupported_resolution"] = "TROPPO PICCOLO",
       ["loading"] = "ROTORFLIGHT",
       ["waiting_for_connection"] = "CONNECTING",
-      ["identifying_fbl"] = "IDENTIFICARE",
       ["check_bg_task"] = "BG TASK",
       ["check_rf_module_on"] = "MODULO RF",
       ["check_discovered_sensors"] = "SENSORI",
@@ -1271,7 +1293,8 @@ return {
       ["cell_voltage"] = "Voltaggio Cella",
       ["volts_per_cell"] = "Volts per cella",
       ["warning"] = "Attenzione",
-      ["tx_batt"] = "TX Battery"
+      ["tx_batt"] = "TX Battery",
+      ["link_max"] = "Link Max"
     },
     ["governor"] = {
       ["UNKNOWN"] = "SCONOSCIUTO",

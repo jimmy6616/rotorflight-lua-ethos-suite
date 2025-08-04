@@ -29,6 +29,16 @@ local modelpref_defaults ={
         flightcount = 0,
         totalflighttime = 0,
         lastflighttime = 0,
+        batterylocalcalculation = 1,
+    },
+    battery = {
+        sag_multiplier = 0.5,
+        kalman_multiplier = 0.5,
+        calc_local = 0,
+        alert_type = 0,
+        becalertvalue = 6.5,
+        rxalertvalue = 7.5,
+        flighttime = 300,
     }
 }
 
@@ -78,6 +88,7 @@ end
 
 function modelpreferences.reset()
     rfsuite.session.modelPreferences = nil
+    rfsuite.session.modelPreferencesFile = nil
 end
 
 function modelpreferences.isComplete()

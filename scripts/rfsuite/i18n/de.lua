@@ -249,6 +249,16 @@ return {
     ["PILOT_CONFIG"] = {
       ["model_param1_value"] = "Setzen Sie die erwartete Flugzeit in Sekunden. Die Fernsteuerung biept sobald die Flugzeit erreicht wurde."
     },
+    ["BATTERY_INI"] = {
+      ["calcfuel_local"] = "Calculate Fuel Using",
+      ["tbl_off"] = "Current Sensor",
+      ["tbl_on"] = "Voltage Sensor",
+      ["sag_multiplier"] = "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      ["kalman_multiplier"] = "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      ["alert_off"] = "Off",
+      ["alert_bec"] = "BEC",
+      ["alert_rxbatt"] = "Rx Batt"
+    },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "Die minimale Spannung pro Zelle, bevor der Niederspannungsalarm ausgeloest wird.",
       ["vbatmaxcellvoltage"] = "Die maximale Spannung pro Zelle, bevor der Hochspannungsalarm ausgeloest wird.",
@@ -426,6 +436,10 @@ return {
         ["txt_mspdata"] = "Protokolliere MSP Daten",
         ["txt_queuesize"] = "Protokolliere MSP Warteschlangengroesse",
         ["txt_memusage"] = "Protokolliere Speicherauslastung",
+        ["txt_batttype"] = "Tx Battery Options",
+        ["txt_battdef"] = "Default",
+        ["txt_batttext"] = "Text",
+        ["txt_battdig"] = "Digital",
         ["dashboard"] = "Dashboard",
         ["dashboard_theme"] = "Design",
         ["dashboard_theme_panel_global"] = "Standard-Design fuer alle Modelle",
@@ -796,6 +810,7 @@ return {
         ["help_logs_p3"] = "- Arm-Status, Spannung, Drehzahl, Strom, ESC-Temperatur"
       },
       ["battery"] = {
+        ["calcfuel_local"] = "Calculate fuel using",
         ["max_cell_voltage"] = "Maximale Zellenspannung",
         ["full_cell_voltage"] = "Volle Zellenspannung",
         ["name"] = "Batterie",
@@ -805,7 +820,12 @@ return {
         ["warn_cell_voltage"] = "Warnung Zellenspannung",
         ["cell_count"] = "Zellenanzahl",
         ["consumption_warning_percentage"] = "Verbrauchswarnung %",
-        ["timer"] = "Flugzeitalarm"
+        ["timer"] = "Flugzeitalarm",
+        ["voltage_multiplier"] = "Spannungsausgleich",
+        ["kalman_multiplier"] = "Filter compensation",
+        ["alert_type"] = "BEC or Rx Batt Voltage Alert",
+        ["bec_voltage_alert"] = "BEC Alert Value",
+        ["rx_voltage_alert"] = "RX Batt Alert Value"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Verstaerkung",
@@ -964,6 +984,8 @@ return {
         ["help_p1"] = "Diese Seite bietet einige nuetzliche Informationen, die Sie moeglicherweise angeben muessen, wenn Sie Unterstuetzung anfordern.",
         ["msgbox_credits"] = "Danksagungen",
         ["ethos_version"] = "Ethos-Version",
+        ["rf_version"] = "Rotorflight-Version",
+        ["fc_version"] = "FC-Version",
         ["name"] = "Ueber",
         ["supported_versions"] = "MSP-Versionen",
         ["license"] = "Sie duerfen die Software kopieren, verbreiten und modifizieren, solange Sie Aenderungen und Daten in den Quelldateien nachverfolgen. Jegliche Aenderungen oder Software, die GPL-lizenzierte Codebestandteile enthaelt (ueber den Compiler), muessen ebenfalls unter der GPL verfuegbar gemacht werden, zusammen mit Anleitungen zur Erstellung und Installation.",
@@ -1191,6 +1213,7 @@ return {
       ["current"] = "Strom",
       ["throttle_pct"] = "Gas %",
       ["consumption"] = "Verbrauch",
+      ["smartconsumption"] = "Intelligenter Verbrauch",
       ["pid_profile"] = "PID-Profil",
       ["mcu_temp"] = "MCU Temperatur",
       ["armdisableflags"] = "Arming-Disable"
@@ -1219,7 +1242,6 @@ return {
       ["unsupported_resolution"] = "ZU KLEIN",
       ["loading"] = "ROTORFLIGHT",
       ["waiting_for_connection"] = "VERBINDEN",
-      ["identifying_fbl"] = "IDENTIFIZIEREN",
       ["check_bg_task"] = "HINTERGRUNDTASK",
       ["check_rf_module_on"] = "HF MODUL",
       ["check_discovered_sensors"] = "SENSOREN",
@@ -1271,7 +1293,8 @@ return {
       ["cell_voltage"] = "Zellenspannung",
       ["volts_per_cell"] = "Volt pro Zelle",
       ["warning"] = "Warnung",
-      ["tx_batt"] = "TX Battery"
+      ["tx_batt"] = "TX Battery",
+      ["link_max"] = "Link Max"
     },
     ["governor"] = {
       ["UNKNOWN"] = "UNBEKANNT",

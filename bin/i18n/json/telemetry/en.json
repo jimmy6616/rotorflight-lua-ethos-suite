@@ -81,8 +81,8 @@
       "needs_translation": "false"
     },
     "fuel": {
-      "english": "Charge Level",
-      "translation": "Charge Level",
+      "english": "Fuel",
+      "translation": "Fuel",
       "needs_translation": "false"
     },
     "smartfuel": {
@@ -123,6 +123,11 @@
     "consumption": {
       "english": "Consumption",
       "translation": "Consumption",
+      "needs_translation": "false"
+    },
+    "smartconsumption": {
+      "english": "Smart Consumption",
+      "translation": "Smart Consumption",
       "needs_translation": "false"
     },
     "pid_profile": {

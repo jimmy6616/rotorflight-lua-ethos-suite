@@ -31,11 +31,11 @@ local config = {}
 -- Configuration settings for the Rotorflight Lua Ethos Suite
 config.toolName = "Rotorflight"                                                     -- name of the tool 
 config.icon = lcd.loadMask("app/gfx/icon.png")                                      -- icon
-config.icon_logtool = lcd.loadMask("app/gfx/icon_logtool.png")          -- icon
+config.icon_logtool = lcd.loadMask("app/gfx/icon_logtool.png")                      -- icon
 config.icon_unsupported = lcd.loadMask("app/gfx/unsupported.png")                   -- icon
-config.version = {major = 2, minor = 3, revision = 0, suffix = "DEV"}               -- version of the script
-config.ethosVersion = {1, 6, 2}                                                      -- min version of ethos supported by this script                                                     
-config.supportedMspApiVersion = {"12.07","12.08","12.09"}                          -- supported msp versions
+config.version = {major = 2, minor = 3, revision = 0, suffix = "20250731"}          -- version of the script
+config.ethosVersion = {1, 6, 2}                                                     -- min version of ethos supported by this script                                                     
+config.supportedMspApiVersion = {"12.07","12.08","12.09"}                           -- supported msp versions
 config.baseDir = "rfsuite"                                                          -- base directory for the suite. This is only used by msp api to ensure correct path
 config.preferences = config.baseDir .. ".user"                                      -- user preferences folder location
 config.defaultRateProfile = 4 -- ACTUAL                                             -- default rate table [default = 4]
@@ -64,7 +64,8 @@ local userpref_defaults ={
     general ={
         iconsize = 2,
         syncname = false,
-        gimbalsupression = 0.85
+        gimbalsupression = 0.85,
+        txbatt_type = 0,
     },
     localizations = {
         temperature_unit = 0, -- 0 = Celsius, 1 = Fahrenheit
@@ -83,8 +84,6 @@ local userpref_defaults ={
         rate_profile        = true,
         esc_temp            = false,
         escalertvalue       = 90,
-        bec_voltage         = false,
-        becalertvalue       = 6.5,
         smartfuel           = true,
         smartfuelcallout    = 0,
         smartfuelrepeats    = 1,

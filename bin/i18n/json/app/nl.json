@@ -243,6 +243,26 @@
         "translation": "Log geheugengebruik",
         "needs_translation": "false"
       },
+      "txt_batttype": {
+        "english": "Tx Battery Options",
+        "translation": "Tx Battery Options",
+        "needs_translation": "true"
+      },
+      "txt_battdef": {
+        "english": "Default",
+        "translation": "Default",
+        "needs_translation": "true"
+      },
+      "txt_batttext": {
+        "english": "Text",
+        "translation": "Text",
+        "needs_translation": "true"
+      },
+      "txt_battdig": {
+        "english": "Digital",
+        "translation": "Digital",
+        "needs_translation": "true"
+      },
       "dashboard": {
         "english": "Dashboard",
         "translation": "Dashboard",
@@ -1933,6 +1953,11 @@
       }
     },
     "battery": {
+      "calcfuel_local": {
+        "english": "Calculate Fuel Using",
+        "translation": "Calculate fuel using",
+        "needs_translation": "true"
+      },
       "max_cell_voltage": {
         "english": "Max Cell Voltage",
         "translation": "Max Cel Spanning",
@@ -1982,6 +2007,31 @@
         "english": "Flight Time Alarm",
         "translation": "Flight Tijd",
         "needs_translation": "false"
+      },
+      "voltage_multiplier": {
+        "english": "Sag Compensation",
+        "translation": "Sag compensatie",
+        "needs_translation": "false"
+      },
+      "kalman_multiplier": {
+        "english": "Filter Compensation",
+        "translation": "Filter compensation",
+        "needs_translation": "true"
+      },
+      "alert_type": {
+        "english": "Rx Voltage Alert",
+        "translation": "BEC or Rx Batt Voltage Alert",
+        "needs_translation": "true"
+      },
+      "bec_voltage_alert": {
+        "english": "BEC Alert Value",
+        "translation": "BEC Alert Value",
+        "needs_translation": "true"
+      },
+      "rx_voltage_alert": {
+        "english": "RxBatt Alert Value",
+        "translation": "RX Batt Alert Value",
+        "needs_translation": "true"
       }
     },
     "profile_mainrotor": {
@@ -2699,6 +2749,16 @@
       "ethos_version": {
         "english": "Ethos Version",
         "translation": "Ethos Versie",
+        "needs_translation": "false"
+      },
+      "rf_version": {
+        "english": "Rotorflight Version",
+        "translation": "Rotorflight Versie",
+        "needs_translation": "false"
+      },
+      "fc_version": {
+        "english": "FC Version",
+        "translation": "FC Versie",
         "needs_translation": "false"
       },
       "name": {

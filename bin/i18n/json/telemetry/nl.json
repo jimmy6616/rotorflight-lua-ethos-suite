@@ -81,7 +81,7 @@
       "needs_translation": "false"
     },
     "fuel": {
-      "english": "Charge Level",
+      "english": "Fuel",
       "translation": "Laad niveau",
       "needs_translation": "false"
     },
@@ -123,6 +123,11 @@
     "consumption": {
       "english": "Consumption",
       "translation": "Verbruik",
+      "needs_translation": "false"
+    },
+    "smartconsumption": {
+      "english": "Smart Consumption",
+      "translation": "Slim verbruik",
       "needs_translation": "false"
     },
     "pid_profile": {

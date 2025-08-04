@@ -249,6 +249,16 @@ return {
     ["PILOT_CONFIG"] = {
       ["model_param1_value"] = "Stel deze in op de verwachtte flight tijd in seconds. De zender zal piepen als de tijd bereikt is."
     },
+    ["BATTERY_INI"] = {
+      ["calcfuel_local"] = "Calculate Fuel Using",
+      ["tbl_off"] = "Current Sensor",
+      ["tbl_on"] = "Voltage Sensor",
+      ["sag_multiplier"] = "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      ["kalman_multiplier"] = "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      ["alert_off"] = "Off",
+      ["alert_bec"] = "BEC",
+      ["alert_rxbatt"] = "Rx Batt"
+    },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "Het minimale voltage wanneer laag voltage alarm wordt getriggerd.",
       ["vbatmaxcellvoltage"] = "Het maximale voltage per cel wanneer hoog voltage alarm wordt getriggerd.",
@@ -426,6 +436,10 @@ return {
         ["txt_mspdata"] = "Log msp data",
         ["txt_queuesize"] = "Log MSP wachtlijst grootte",
         ["txt_memusage"] = "Log geheugengebruik",
+        ["txt_batttype"] = "Tx Battery Options",
+        ["txt_battdef"] = "Default",
+        ["txt_batttext"] = "Text",
+        ["txt_battdig"] = "Digital",
         ["dashboard"] = "Dashboard",
         ["dashboard_theme"] = "Thema",
         ["dashboard_theme_panel_global"] = "Standaard thema voor alle modellen",
@@ -796,6 +810,7 @@ return {
         ["help_logs_p3"] = "- arm status, voltage, headspeed, current, esc temperature"
       },
       ["battery"] = {
+        ["calcfuel_local"] = "Calculate fuel using",
         ["max_cell_voltage"] = "Max Cel Spanning",
         ["full_cell_voltage"] = "Volle Cell Spanning",
         ["name"] = "Batterij",
@@ -805,7 +820,12 @@ return {
         ["warn_cell_voltage"] = "Waarschuwing Cel Spanning",
         ["cell_count"] = "Aantal cellen",
         ["consumption_warning_percentage"] = "Verbruik Waarschuwing %",
-        ["timer"] = "Flight Tijd"
+        ["timer"] = "Flight Tijd",
+        ["voltage_multiplier"] = "Sag compensatie",
+        ["kalman_multiplier"] = "Filter compensation",
+        ["alert_type"] = "BEC or Rx Batt Voltage Alert",
+        ["bec_voltage_alert"] = "BEC Alert Value",
+        ["rx_voltage_alert"] = "RX Batt Alert Value"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Gain",
@@ -964,6 +984,8 @@ return {
         ["help_p1"] = "Op deze pagina vindt u nuttige informatie die u mogelijk wordt gevraagd wanneer u ondersteuning nodig heeft",
         ["msgbox_credits"] = "Credits",
         ["ethos_version"] = "Ethos Versie",
+        ["rf_version"] = "Rotorflight Versie",
+        ["fc_version"] = "FC Versie",
         ["name"] = "Over",
         ["supported_versions"] = "Ondersteunde MSP Versies",
         ["license"] = "You may copy, distribute, and modify the software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.",
@@ -1191,6 +1213,7 @@ return {
       ["current"] = "Stroom",
       ["throttle_pct"] = "Throttle %",
       ["consumption"] = "Verbruik",
+      ["smartconsumption"] = "Slim verbruik",
       ["pid_profile"] = "PID Profiel",
       ["mcu_temp"] = "MCU Temperatuur",
       ["armdisableflags"] = "Arming Disable"
@@ -1219,7 +1242,6 @@ return {
       ["unsupported_resolution"] = "TE KLEIN",
       ["loading"] = "ROTORFLIGHT",
       ["waiting_for_connection"] = "VERBINDEN",
-      ["identifying_fbl"] = "IDENTIFICEREN",
       ["check_bg_task"] = "BG TASK",
       ["check_rf_module_on"] = "RF MODULE",
       ["check_discovered_sensors"] = "SENSOREN",
@@ -1271,7 +1293,8 @@ return {
       ["cell_voltage"] = "Cel voltage",
       ["volts_per_cell"] = "Voltage per cel",
       ["warning"] = "Waarschuwing",
-      ["tx_batt"] = "TX Battery"
+      ["tx_batt"] = "TX Battery",
+      ["link_max"] = "Link Max"
     },
     ["governor"] = {
       ["UNKNOWN"] = "ONBEKEND",

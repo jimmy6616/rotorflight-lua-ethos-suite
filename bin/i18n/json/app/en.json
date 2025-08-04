@@ -243,6 +243,26 @@
         "translation": "Log memory usage",
         "needs_translation": "false"
       },
+      "txt_batttype": {
+        "english": "Tx Battery Options",
+        "translation": "Tx Battery Options",
+        "needs_translation": "false"
+      },
+      "txt_battdef": {
+        "english": "Default",
+        "translation": "Default",
+        "needs_translation": "false"
+      },
+      "txt_batttext": {
+        "english": "Text",
+        "translation": "Text",
+        "needs_translation": "false"
+      },
+      "txt_battdig": {
+        "english": "Digital",
+        "translation": "Digital",
+        "needs_translation": "false"
+      },
       "dashboard": {
         "english": "Dashboard",
         "translation": "Dashboard",
@@ -1933,6 +1953,11 @@
       }
     },
     "battery": {
+      "calcfuel_local": {
+        "english": "Calculate Fuel Using",
+        "translation": "Calculate Fuel Using",
+        "needs_translation": "false"
+      },
       "max_cell_voltage": {
         "english": "Max Cell Voltage",
         "translation": "Max Cell Voltage",
@@ -1981,6 +2006,31 @@
       "timer": {
         "english": "Flight Time Alarm",
         "translation": "Flight Time Alarm",
+        "needs_translation": "false"
+      },
+      "voltage_multiplier": {
+        "english": "Sag Compensation",
+        "translation": "Sag Compensation",
+        "needs_translation": "false"
+      },
+      "kalman_multiplier": {
+        "english": "Filter Compensation",
+        "translation": "Filter Compensation",
+        "needs_translation": "false"
+      },
+      "alert_type": {
+        "english": "Rx Voltage Alert",
+        "translation": "Rx Voltage Alert",
+        "needs_translation": "false"
+      },
+      "bec_voltage_alert": {
+        "english": "BEC Alert Value",
+        "translation": "BEC Alert Value",
+        "needs_translation": "false"
+      },
+      "rx_voltage_alert": {
+        "english": "RxBatt Alert Value",
+        "translation": "RxBatt Alert Value",
         "needs_translation": "false"
       }
     },
@@ -2699,6 +2749,16 @@
       "ethos_version": {
         "english": "Ethos Version",
         "translation": "Ethos Version",
+        "needs_translation": "false"
+      },
+      "rf_version": {
+        "english": "Rotorflight Version",
+        "translation": "Rotorflight Version",
+        "needs_translation": "false"
+      },
+      "fc_version": {
+        "english": "FC Version",
+        "translation": "FC Version",
         "needs_translation": "false"
       },
       "name": {

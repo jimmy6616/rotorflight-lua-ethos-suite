@@ -76,6 +76,7 @@ local objectWakeupIndex = 1             -- current object index for wakeup
 local objectWakeupsPerCycle = nil       -- number of objects to wake per cycle (calculated later)
 local objectsThreadedWakeupCount = 0
 local lastLoadedBoxCount = 0
+local lastBoxRectsCount = 0
 
 -- Track background loading of remaining flight mode modules
 local statePreloadQueue = {"inflight", "postflight"}
@@ -279,8 +280,9 @@ function dashboard.computeOverlayMessage()
         return i18n("widgets.dashboard.check_discovered_sensors")
     elseif not rfsuite.session.isConnectedHigh and  state ~= "postflight" then
         return i18n("widgets.dashboard.waiting_for_connection")    
-    elseif rfsuite.session.isConnectedHigh and not rfsuite.session.isConnectedLow and  state ~= "postflight" then
-        return i18n("widgets.dashboard.identifying_fbl")            
+    elseif rfsuite.session.isConnectedHigh and not rfsuite.session.isConnectedLow and rfsuite.session.rfVersion and  state ~= "postflight" then
+        local pad = "      "
+        return pad .. "RF" .. rfsuite.session.rfVersion .. pad
     elseif not rfsuite.session.telemetryState and state == "preflight" then
         return i18n("widgets.dashboard.no_link")
     elseif rfsuite.session.telemetryState and telemetry and not telemetry.validateSensors() then
@@ -1094,6 +1096,9 @@ end
 -- @param widget The widget instance to update.
 function dashboard.wakeup(widget)
 
+    -- Check if MSP is allow msp to be prioritized
+    if rfsuite.app.triggers.mspBusy and not (rfsuite.session and rfsuite.session.isConnected) then return end
+
     local telemetry = tasks.telemetry
     local W, H = lcd.getWindowSize()
 
@@ -1155,10 +1160,11 @@ function dashboard.wakeup(widget)
     local now = os.clock()
     local visible = lcd.isVisible()
 
-    -- slow down if not visible to give priority to other tasks
-    if not visible then
+    -- Throttle CPU usage based on connection and visibility
+    if not rfsuite.session.isConnected then
+        if (now - lastWakeup) < 0.5 then return end
+    elseif not visible then
         if (now - lastWakeup) < 2 then return end
-        lastWakeup = now  
     end
 
     local currentFlightMode = rfsuite.flightmode.current or "preflight"
@@ -1189,7 +1195,8 @@ function dashboard.wakeup(widget)
         callStateFunc("wakeup", widget)
     end
 
-    if #dashboard.boxRects > 0 and objectWakeupsPerCycle then
+    if #dashboard.boxRects > 0 then
+        -- Always wake explicitly scheduled objects
         for _, idx in ipairs(scheduledBoxIndices) do
             local rect = dashboard.boxRects[idx]
             local obj = dashboard.objectsByType[rect.box.type]
@@ -1201,7 +1208,26 @@ function dashboard.wakeup(widget)
         local needsFullInvalidate = dashboard._forceFullRepaint or dashboard.overlayMessage or objectsThreadedWakeupCount < 1
         local dirtyRects = {}
 
-        if dashboard._useSpreadScheduling ~= false then
+        if dashboard._useSpreadScheduling == false then
+            -- Wake up all boxes regardless of scheduler flag
+            for i, rect in ipairs(dashboard.boxRects) do
+                local obj = dashboard.objectsByType[rect.box.type]
+                if obj and obj.wakeup and not obj.scheduler then
+                    obj.wakeup(rect.box)
+                end
+                if not needsFullInvalidate then
+                    local dirtyFn = obj and obj.dirty
+                    if dirtyFn and dirtyFn(rect.box) then
+                        table.insert(dirtyRects, {
+                            x = rect.x - 1, y = rect.y - 1,
+                            w = rect.w + 2, h = rect.h + 2
+                        })
+                    end
+                end
+            end
+
+        else
+            -- Spread mode: stagger wakeups
             for i = 1, objectWakeupsPerCycle do
                 local idx = objectWakeupIndex
                 local rect = dashboard.boxRects[idx]
@@ -1210,7 +1236,6 @@ function dashboard.wakeup(widget)
                     if obj and obj.wakeup and not obj.scheduler then
                         obj.wakeup(rect.box)
                     end
-
                     if not needsFullInvalidate then
                         local dirtyFn = obj and obj.dirty
                         if dirtyFn and dirtyFn(rect.box) then
@@ -1224,11 +1249,11 @@ function dashboard.wakeup(widget)
                 objectWakeupIndex = (#dashboard.boxRects > 0) and ((objectWakeupIndex % #dashboard.boxRects) + 1) or 1
             end
 
-            if objectWakeupIndex == 1 then
-                objectsThreadedWakeupCount = objectsThreadedWakeupCount + 1
-            end
         end
 
+        objectsThreadedWakeupCount = objectsThreadedWakeupCount + 1
+
+        -- Force repaint
         if dashboard._useSpreadSchedulingPaint then
             if needsFullInvalidate then
                 lcd.invalidate()
@@ -1237,8 +1262,11 @@ function dashboard.wakeup(widget)
                     lcd.invalidate(r.x, r.y, r.w, r.h)
                 end
             end
-        end    
+        else
+            lcd.invalidate()
+        end
     end
+
 
     if not lcd.hasFocus(widget) and dashboard.selectedBoxIndex ~= nil then
         log("Removing focus from box " .. tostring(dashboard.selectedBoxIndex), "info")
@@ -1246,17 +1274,6 @@ function dashboard.wakeup(widget)
         if dashboard._useSpreadSchedulingPaint then
             lcd.invalidate(widget)
         end    
-    end
-
-
-
-
-    if lcd.isVisible() then
-        dashboard._lastMemReport = dashboard._lastMemReport or 0
-        if os.clock() - dashboard._lastMemReport > 5 then
-            rfsuite.utils.reportMemoryUsage("Dashboard")
-            dashboard._lastMemReport = os.clock()
-        end
     end
 
     if not dashboard._useSpreadSchedulingPaint then
@@ -1358,12 +1375,7 @@ function dashboard.resetFlightModeAsk()
     local buttons = {{
         label = i18n("app.btn_ok"),
         action = function()
-
-            -- we push this to the background task to do its job
-            dashboard.flightmode = "preflight"
-            rfsuite.flightmode.current = "preflight"
             tasks.events.flightmode.reset()
-            dashboard._forceFullRepaint = true
             lcd.invalidate()
             return true
         end
@@ -1397,5 +1409,8 @@ end
 
 -- table to stall object cache
 dashboard.renders = dashboard.renders or {}
+
+-- disabled use of title
+dashboard.title = false
 
 return dashboard

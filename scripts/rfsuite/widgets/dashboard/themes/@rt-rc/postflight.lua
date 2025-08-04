@@ -17,8 +17,9 @@
 
 local i18n = rfsuite.i18n.get
 local utils = rfsuite.widgets.dashboard.utils
-local boxes_cache = nil
-local lastScreenW = nil
+
+local headeropts = utils.getHeaderOptions()
+local colorMode = utils.themeColors()
 
 local function maxVoltageToCellVoltage(value)
     local cfg = rfsuite.session.batteryConfig
@@ -32,66 +33,30 @@ local function maxVoltageToCellVoltage(value)
     return value
 end
 
-local darkMode = {
-    textcolor       = "white",
-    titlecolor      = "white",
-    bgcolor         = "black",
-    fillcolor       = "green",
-    fillbgcolor     = "darkgrey",
-    accentcolor     = "white",
-    rssifillcolor   = "green",
-    rssifillbgcolor = "darkgrey",
-    txaccentcolor   = "grey",
-    txfillcolor     = "green",
-    txbgfillcolor   = "darkgrey",
-    bgcolortop =    lcd.RGB(10, 10, 10),
-}
-
-local lightMode = {
-    textcolor       = "black",
-    titlecolor      = "black",
-    bgcolor         = "white",
-    fillcolor       = "green",
-    fillbgcolor     = "lightgrey",
-    accentcolor     = "darkgrey",
-    rssifillcolor   = "green",
-    rssifillbgcolor = "grey",
-    txaccentcolor   = "darkgrey",
-    txfillcolor     = "green",
-    txbgfillcolor   = "grey",
-    bgcolortop =    "grey",
-}
-
--- User voltage min/max override support
-local function getUserVoltageOverride(which)
-  local prefs = rfsuite.session and rfsuite.session.modelPreferences
-  if prefs and prefs["system/@rt-rc"] then
-    local v = tonumber(prefs["system/@rt-rc"][which])
-    -- Only use override if it is present and different from the default 6S values
-    -- (Defaults: min=18.0, max=25.2)
-    if which == "v_min" and v and math.abs(v - 18.0) > 0.05 then return v end
-    if which == "v_max" and v and math.abs(v - 25.2) > 0.05 then return v end
-  end
-  return nil
-end
-
--- alias current mode
-local colorMode = lcd.darkMode() and darkMode or lightMode
-
 -- Theme based configuration settings
 local theme_section = "system/@rt-rc"
 
 local THEME_DEFAULTS = {
-    rpm_min      = 0,
-    rpm_max      = 3000,
-    bec_min      = 3.0,
-    bec_max      = 13.0,
-    esctemp_warn = 90,
-    esctemp_max  = 140,
-    tx_min       = 7.2,
-    tx_warn      = 7.4,
-    tx_max       = 8.4
+    v_min      = 18.0,
+    v_max      = 25.2,
 }
+
+local function getThemeValue(key)
+    -- Use General preferences for TX values
+    if key == "tx_min" or key == "tx_warn" or key == "tx_max" then
+        if rfsuite and rfsuite.preferences and rfsuite.preferences.general then
+            local val = rfsuite.preferences.general[key]
+            if val ~= nil then return tonumber(val) end
+        end
+    end
+    -- Theme defaults for other values
+    if rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section] then
+        local val = rfsuite.session.modelPreferences[theme_section][key]
+        val = tonumber(val)
+        if val ~= nil then return val end
+    end
+    return THEME_DEFAULTS[key]
+end
 
 -- Theme Options based on screen width
 local function getThemeOptionKey(W)
@@ -111,55 +76,47 @@ local themeOptions = {
     ls_full = {
         font = "FONT_XXL", 
         titlefont = "FONT_S", 
-        titlepaddingtop = 15
+        valuepaddingtop = 15
     },
 
     ls_std  = {
         font = "FONT_XL", 
         titlefont = "FONT_XS", 
-        titlepaddingtop = 0
+        valuepaddingtop = 10
     },
 
     -- Medium screens (X18 / X18S / TWXLITE) - Full/Standard
     ms_full = {
         font = "FONT_XL", 
         titlefont = "FONT_XXS", 
-        titlepaddingtop = 5
+        valuepaddingtop = 15
     },
 
     ms_std  = {
         font = "FONT_XL", 
         titlefont = "FONT_XXS", 
-        titlepaddingtop = 0
+        valuepaddingtop = 10
     },
 
     -- Small screens - (X14 / X14S) Full/Standard
     ss_full = {
         font = "FONT_XL", 
         titlefont = "FONT_XS", 
-        titlepaddingtop = 5
+        valuepaddingtop = 0
     },
 
     ss_std  = {
         font = "FONT_XL", 
         titlefont = "FONT_XXS", 
-        titlepaddingtop = 0
+        valuepaddingtop = 0
     },
 }
-
-local function getThemeValue(key)
-    if rfsuite and rfsuite.session and rfsuite.session.modelPreferences and rfsuite.session.modelPreferences[theme_section] then
-        local val = rfsuite.session.modelPreferences[theme_section][key]
-        val = tonumber(val)
-        if val ~= nil then return val end
-    end
-    return THEME_DEFAULTS[key]
-end
 
 -- Caching for boxes
 local lastScreenW = nil
 local boxes_cache = nil
-local headeropts = utils.getHeaderOptions()
+local header_boxes_cache = nil
+local last_txbatt_type = nil
 
 -- Theme Layout
 local layout = {
@@ -169,13 +126,23 @@ local layout = {
     --showgrid = lcd.RGB(100, 100, 100)  -- or any color you prefer
 }
 
-local header_layout = {
-    height  = headeropts.height,
-    cols    = 7,
-    rows    = 1,
-    padding = 0,
-    --showgrid = lcd.RGB(100, 100, 100)  -- or any color you prefer
-}
+-- Header Layout
+local header_layout = utils.standardHeaderLayout(headeropts)
+
+-- Header Boxes
+local function header_boxes()
+    local txbatt_type = 0
+    if rfsuite and rfsuite.preferences and rfsuite.preferences.general then
+        txbatt_type = rfsuite.preferences.general.txbatt_type or 0
+    end
+
+    -- Rebuild cache if type changed
+    if header_boxes_cache == nil or last_txbatt_type ~= txbatt_type then
+        header_boxes_cache = utils.standardHeaderBoxes(i18n, colorMode, headeropts, txbatt_type)
+        last_txbatt_type = txbatt_type
+    end
+    return header_boxes_cache
+end
 
 -- Boxes
 local function buildBoxes(W)
@@ -186,130 +153,44 @@ local function buildBoxes(W)
     return{
 -- Flight info and RPM info
         {col = 1, row = 1, colspan = 2, rowspan = 3, type = "time", subtype = "flight", title = i18n("widgets.dashboard.flight_duration"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 1, row = 4, colspan = 2, rowspan = 3, type = "time", subtype = "total", title = i18n("widgets.dashboard.total_flight_duration"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 1, row = 7, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "min", source = "rpm", title = i18n("widgets.dashboard.rpm_min"), unit = " rpm", titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 1, row = 10, colspan = 2, rowspan = 3, type = "text", subtype = "stats", source = "rpm", title = i18n("widgets.dashboard.rpm_max"), unit = " rpm", titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         -- Flight max/min stats 1
         {col = 3, row = 1, colspan = 2, rowspan = 3, type = "text", subtype = "stats", source = "throttle_percent", title = i18n("widgets.dashboard.throttle_max"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 3, row = 4, colspan = 2, rowspan = 3, type = "text", subtype = "stats", source = "current", title = i18n("widgets.dashboard.current_max"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 3, row = 7, colspan = 2, rowspan = 3, type = "text", subtype = "stats", source = "temp_esc", title = i18n("widgets.dashboard.esc_max_temp"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 3, row = 10, colspan = 2, rowspan = 3, type = "text", subtype = "watts", source = "max", title = i18n("widgets.dashboard.watts_max"), unit = "W", titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         -- Flight max/min stats 2
-        {col = 5, row = 1, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "max", source = "consumption", title = i18n("widgets.dashboard.consumed_mah"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        {col = 5, row = 1, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "max", source = "smartconsumption", title = i18n("widgets.dashboard.consumed_mah"), titlepos = "bottom", 
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 5, row = 4, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "min", source = "smartfuel", title = i18n("widgets.dashboard.fuel_remaining"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
         {col = 5, row = 7, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "min", source = "voltage", title = i18n("widgets.dashboard.min_volts_cell"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, unit = "V", transform = function(v) return maxVoltageToCellVoltage(v) end, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},
+        bgcolor = colorMode.bgcolor, unit = "V", transform = function(v) return maxVoltageToCellVoltage(v) end, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, font = opts.font, titlefont = opts.titlefont},
 
-        {col = 5, row = 10, colspan = 2, rowspan = 3, type = "text", subtype = "stats", stattype = "min", source = "link", title = i18n("widgets.dashboard.link_min"), titlepos = "bottom", 
-        bgcolor = colorMode.bgcolor, transform = "floor", textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, titlepaddingtop = opts.titlepaddingtop, font = opts.font, titlefont = opts.titlefont},       
+        {col = 5, row = 10, colspan = 2, rowspan = 3, type = "text", subtype = "telemetry", source = "voltage", title = i18n("widgets.dashboard.volts_per_cell"), titlepos = "bottom", 
+        bgcolor = colorMode.bgcolor, textcolor = colorMode.textcolor, titlecolor = colorMode.titlecolor, valuepaddingtop = opts.valuepaddingtop, unit = "V", font = opts.font, titlefont = opts.titlefont, transform = function(v) return maxVoltageToCellVoltage(v) end},       
     }
 end
-
-local header_boxes = {
--- Craftname
-    { 
-        col = 1, 
-        row = 1, 
-        colspan = 2, 
-        type = "text", 
-        subtype = "craftname",
-        font = headeropts.font, 
-        valuealign = "left", 
-        valuepaddingleft = 5,
-        bgcolor = colorMode.bgcolortop, 
-        titlecolor = colorMode.titlecolor, 
-        textcolor = colorMode.textcolor 
-    },
-
-    -- RF Logo
-    { 
-        col = 3, 
-        row = 1, 
-        colspan = 3, 
-        type = "image", 
-        subtype = "image",
-        bgcolor = colorMode.bgcolortop 
-    },
-
-    -- TX Battery
-    { 
-        col = 6, 
-        row = 1,
-        type = "gauge", 
-        subtype = "bar", 
-        source = "txbatt",
-        font = headeropts.font,
-        battery = true, 
-        batteryframe = true, 
-        hidevalue = true,
-        valuealign = "left", 
-        batterysegments = 4, 
-        batteryspacing = 1, 
-        batteryframethickness  = 2,
-        batterysegmentpaddingtop = headeropts.batterysegmentpaddingtop,
-        batterysegmentpaddingbottom = headeropts.batterysegmentpaddingbottom,
-        batterysegmentpaddingleft = headeropts.batterysegmentpaddingleft,
-        batterysegmentpaddingright = headeropts.batterysegmentpaddingright,
-        gaugepaddingright = headeropts.gaugepaddingright,
-        gaugepaddingleft = headeropts.gaugepaddingleft,
-        gaugepaddingbottom = headeropts.gaugepaddingbottom,
-        gaugepaddingtop = headeropts.gaugepaddingtop,
-        fillbgcolor = colorMode.txbgfillcolor, 
-        bgcolor = colorMode.bgcolortop,
-        accentcolor = colorMode.txaccentcolor, 
-        textcolor = colorMode.textcolor,
-        min = getThemeValue("tx_min"), 
-        max = getThemeValue("tx_max"), 
-        thresholds = {
-            { value = getThemeValue("tx_warn"), fillcolor = "orange" },
-            { value = getThemeValue("tx_max"), fillcolor = colorMode.txfillcolor }
-        }
-    },
-
-    -- RSSI
-    { 
-        col = 7, 
-        row = 1,
-        type = "gauge", 
-        subtype = "step", 
-        source = "rssi",
-        font = "FONT_XS", 
-        stepgap = 2, 
-        stepcount = 5, 
-        decimals = 0,
-        valuealign = "left",
-        barpaddingleft = headeropts.barpaddingleft,
-        barpaddingright = headeropts.barpaddingright,
-        barpaddingbottom = headeropts.barpaddingbottom,
-        barpaddingtop = headeropts.barpaddingtop,
-        valuepaddingleft = headeropts.valuepaddingleft,
-        valuepaddingbottom = headeropts.valuepaddingbottom,
-        bgcolor = colorMode.bgcolortop, 
-        textcolor = colorMode.textcolor, 
-        fillcolor = colorMode.rssifillcolor,
-        fillbgcolor = colorMode.rssifillbgcolor,
-    },
-}
 
 local function boxes()
     local W = lcd.getWindowSize()

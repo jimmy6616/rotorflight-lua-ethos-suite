@@ -976,6 +976,48 @@
       "needs_translation": "false"
     }
   },
+  "BATTERY_INI": {
+    "calcfuel_local": {
+      "english": "Calculate Fuel Using",
+      "translation": "Calculate Fuel Using",
+      "needs_translation": "false"
+    },
+    "tbl_off": {
+      "english": "Current Sensor",
+      "translation": "Current Sensor",
+      "needs_translation": "false"
+    },
+    "tbl_on": {
+      "english": "Voltage Sensor",
+      "translation": "Voltage Sensor",
+      "needs_translation": "false"
+    },
+    "sag_multiplier": {
+      "english": "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      "translation": "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      "needs_translation": "false"
+    },
+    "kalman_multiplier": {
+      "english": "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      "translation": "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      "needs_translation": "false"
+    },
+    "alert_off": {
+      "english": "Off",
+      "translation": "Off",
+      "needs_translation": "false"
+    },
+    "alert_bec": {
+      "english": "BEC",
+      "translation": "BEC",
+      "needs_translation": "false"
+    },
+    "alert_rxbatt": {
+      "english": "RxBatt",
+      "translation": "RXBatt",
+      "needs_translation": "false"
+    }
+  },
   "BATTERY_CONFIG": {
     "vbatmincellvoltage": {
       "english": "The minimum voltage per cell before the low voltage alarm is triggered.",

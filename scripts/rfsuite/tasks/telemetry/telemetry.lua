@@ -414,6 +414,30 @@ local sensorTable = {
         },
     },
 
+    -- Fuel and Capacity Sensors
+    smartconsumption = {
+        name = i18n("telemetry.sensors.smartconsumption"),
+        mandatory = false,
+        stats = true,
+        set_telemetry_sensors = nil,
+        switch_alerts = true,
+        unit = UNIT_MILLIAMPERE_HOUR,
+        unit_string = "mAh",
+        sensors = {
+            sim = {
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x5FE0 },
+            },
+            sport = {
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x5FE0 },
+            },
+            crsf = {
+                { category = CATEGORY_TELEMETRY_SENSOR, appId = 0x5FE0 },
+            },
+            crsfLegacy = nil,
+        },
+    },
+
+
     consumption = {
         name = i18n("telemetry.sensors.consumption"),
         mandatory = true,
@@ -1053,7 +1077,12 @@ function telemetry.getSensor(sensorKey)
     local major = entry and entry.unit or nil
     local minor = nil
 
-    -- if the sensor has a transform function, apply it to the value:
+    -- if we have a transform function, apply it to the value:
+    if entry and entry.transform and type(entry.transform) == "function" then
+        value = entry.transform(value)
+    end   
+
+    -- if the sensor has a localization function, apply it to the value:
     if entry and entry.localizations and type(entry.localizations) == "function" then
         value, major, minor = entry.localizations(value)
     end
@@ -1145,11 +1174,15 @@ function telemetry.reset()
     telemetrySOURCE, crsfSOURCE, protocol = nil, nil, nil
     sensors = {}
     hot_list, hot_index = {}, {}
-    --telemetry.sensorStats = {} -- we defer this to onconnect
-    -- Also reset onchange tracking so we rebuild next time:
     filteredOnchangeSensors = nil
     lastSensorValues = {}
     onchangeInitialized = false
+    sensorRateLimit = os.clock()
+    lastValidationResult = nil
+    lastValidationTime = 0
+    lastCacheFlushTime = os.clock()
+    cache_hits, cache_misses = 0, 0
+    --telemetry.sensorStats = {} -- we defer this to onconnect
 end
 
 --[[ 

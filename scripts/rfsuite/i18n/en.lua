@@ -249,6 +249,16 @@ return {
     ["PILOT_CONFIG"] = {
       ["model_param1_value"] = "Set this to the expected flight time in seconds.  The transmitter will beep when the flight time is reached."
     },
+    ["BATTERY_INI"] = {
+      ["calcfuel_local"] = "Calculate Fuel Using",
+      ["tbl_off"] = "Current Sensor",
+      ["tbl_on"] = "Voltage Sensor",
+      ["sag_multiplier"] = "Raise or lower to adjust for the amount of voltage sag you see in flight.",
+      ["kalman_multiplier"] = "Stabilise the input voltage sensor reading to prevent the fuel sensor bouncing due to sudden voltage dips. Raise or lower to adjust.",
+      ["alert_off"] = "Off",
+      ["alert_bec"] = "BEC",
+      ["alert_rxbatt"] = "RxBatt"
+    },
     ["BATTERY_CONFIG"] = {
       ["vbatmincellvoltage"] = "The minimum voltage per cell before the low voltage alarm is triggered.",
       ["vbatmaxcellvoltage"] = "The maximum voltage per cell before the high voltage alarm is triggered.",
@@ -426,6 +436,10 @@ return {
         ["txt_mspdata"] = "Log msp data",
         ["txt_queuesize"] = "Log MSP queue size",
         ["txt_memusage"] = "Log memory usage",
+        ["txt_batttype"] = "Tx Battery Options",
+        ["txt_battdef"] = "Default",
+        ["txt_batttext"] = "Text",
+        ["txt_battdig"] = "Digital",
         ["dashboard"] = "Dashboard",
         ["dashboard_theme"] = "Theme",
         ["dashboard_theme_panel_global"] = "Default theme for all models",
@@ -796,6 +810,7 @@ return {
         ["help_logs_p3"] = "- arm status, voltage, headspeed, current, esc temperature"
       },
       ["battery"] = {
+        ["calcfuel_local"] = "Calculate Fuel Using",
         ["max_cell_voltage"] = "Max Cell Voltage",
         ["full_cell_voltage"] = "Full Cell Voltage",
         ["name"] = "Battery",
@@ -805,7 +820,12 @@ return {
         ["warn_cell_voltage"] = "Warn Cell Voltage",
         ["cell_count"] = "Cell Count",
         ["consumption_warning_percentage"] = "Consumption Warning %",
-        ["timer"] = "Flight Time Alarm"
+        ["timer"] = "Flight Time Alarm",
+        ["voltage_multiplier"] = "Sag Compensation",
+        ["kalman_multiplier"] = "Filter Compensation",
+        ["alert_type"] = "Rx Voltage Alert",
+        ["bec_voltage_alert"] = "BEC Alert Value",
+        ["rx_voltage_alert"] = "RxBatt Alert Value"
       },
       ["profile_mainrotor"] = {
         ["gain"] = "Gain",
@@ -964,6 +984,8 @@ return {
         ["help_p1"] = "This page provides some useful information that you may be asked for when requesting support.",
         ["msgbox_credits"] = "Credits",
         ["ethos_version"] = "Ethos Version",
+        ["rf_version"] = "Rotorflight Version",
+        ["fc_version"] = "FC Version",
         ["name"] = "About",
         ["supported_versions"] = "Supported MSP Versions",
         ["license"] = "You may copy, distribute, and modify the software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.",
@@ -1182,7 +1204,7 @@ return {
       ["cell_count"] = "Cell count",
       ["governor"] = "Governor State",
       ["adj_func"] = "Adj (Function)",
-      ["fuel"] = "Charge Level",
+      ["fuel"] = "Fuel",
       ["smartfuel"] = "Smart Fuel",
       ["rssi"] = "RSSI",
       ["link"] = "Link Quality",
@@ -1191,6 +1213,7 @@ return {
       ["current"] = "Current",
       ["throttle_pct"] = "Throttle %",
       ["consumption"] = "Consumption",
+      ["smartconsumption"] = "Smart Consumption",
       ["pid_profile"] = "PID Profile",
       ["mcu_temp"] = "MCU Temperature",
       ["armdisableflags"] = "Arming Disable"
@@ -1219,7 +1242,6 @@ return {
       ["unsupported_resolution"] = "TO SMALL",
       ["loading"] = "ROTORFLIGHT",
       ["waiting_for_connection"] = "CONNECTING",
-      ["identifying_fbl"] = "IDENTIFYING",
       ["check_bg_task"] = "BG TASK",
       ["check_rf_module_on"] = "RF MODULE",
       ["check_discovered_sensors"] = "SENSORS",
@@ -1271,7 +1293,8 @@ return {
       ["cell_voltage"] = "Cell Voltage",
       ["volts_per_cell"] = "Volts per cell",
       ["warning"] = "Warning",
-      ["tx_batt"] = "TX Battery"
+      ["tx_batt"] = "TX Battery",
+      ["link_max"] = "Link Max"
     },
     ["governor"] = {
       ["UNKNOWN"] = "UNKNOWN",
