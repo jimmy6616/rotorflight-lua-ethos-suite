@@ -22,16 +22,16 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- Define the MSP response data structures
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "batteryCapacity",              type = "U16", apiVersion = 12.06, simResponse = {136, 19}, min = 0,   max = 20000, step = 50, unit = "mAh", default = 0},
-    {field = "batteryCellCount",             type = "U8",  apiVersion = 12.06, simResponse = {6},      min = 0,   max = 24,    unit = nil,   default = 6},
-    {field = "voltageMeterSource",           type = "U8",  apiVersion = 12.06, simResponse = {1}},
-    {field = "currentMeterSource",           type = "U8",  apiVersion = 12.06, simResponse = {1}},
-    {field = "vbatmincellvoltage",           type = "U16", apiVersion = 12.06, simResponse = {74, 1},  min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 3.3},
-    {field = "vbatmaxcellvoltage",           type = "U16", apiVersion = 12.06, simResponse = {164, 1}, min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 4.2},
-    {field = "vbatfullcellvoltage",          type = "U16", apiVersion = 12.06, simResponse = {154, 1}, min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 4.1},
-    {field = "vbatwarningcellvoltage",       type = "U16", apiVersion = 12.06, simResponse = {94, 1},  min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 3.5},
-    {field = "lvcPercentage",                type = "U8",  apiVersion = 12.06, simResponse = {100}},
-    {field = "consumptionWarningPercentage", type = "U8",  apiVersion = 12.06, simResponse = {30}, min = 0, max = 50, default = 35, unit = "%"},
+    {field = "batteryCapacity",              type = "U16", apiVersion = 12.06, simResponse = {136, 19}, min = 0,   max = 20000, step = 50, unit = "mAh", default = 0, help = "@i18n(api.BATTERY_CONFIG.batteryCapacity)@"},
+    {field = "batteryCellCount",             type = "U8",  apiVersion = 12.06, simResponse = {6},      min = 0,   max = 24,    unit = nil,   default = 6 , help = "@i18n(api.BATTERY_CONFIG.batteryCellCount)@"},
+    {field = "voltageMeterSource",           type = "U8",  apiVersion = 12.06, simResponse = {1}, help = "@i18n(api.BATTERY_CONFIG.voltageMeterSource)@"},
+    {field = "currentMeterSource",           type = "U8",  apiVersion = 12.06, simResponse = {1}, help = "@i18n(api.BATTERY_CONFIG.currentMeterSource)@"},
+    {field = "vbatmincellvoltage",           type = "U16", apiVersion = 12.06, simResponse = {74, 1},  min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 3.3, help = "@i18n(api.BATTERY_CONFIG.vbatmincellvoltage)@"},
+    {field = "vbatmaxcellvoltage",           type = "U16", apiVersion = 12.06, simResponse = {164, 1}, min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 4.2, help = "@i18n(api.BATTERY_CONFIG.vbatmaxcellvoltage)@"},
+    {field = "vbatfullcellvoltage",          type = "U16", apiVersion = 12.06, simResponse = {154, 1}, min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 4.1, help = "@i18n(api.BATTERY_CONFIG.vbatfullcellvoltage)@"},
+    {field = "vbatwarningcellvoltage",       type = "U16", apiVersion = 12.06, simResponse = {94, 1},  min = 0,   decimals = 2, scale = 100, max = 500, unit = "V",   default = 3.5, help = "@i18n(api.BATTERY_CONFIG.vbatwarningcellvoltage)@"},
+    {field = "lvcPercentage",                type = "U8",  apiVersion = 12.06, simResponse = {100}, help = "@i18n(api.BATTERY_CONFIG.lvcPercentage)@"},
+    {field = "consumptionWarningPercentage", type = "U8",  apiVersion = 12.06, simResponse = {30}, min = 0, max = 50, default = 35, unit = "%", help = "@i18n(api.BATTERY_CONFIG.consumptionWarningPercentage)@"},
 }
 
 -- Process structure in one pass
@@ -40,9 +40,6 @@ local MSP_API_STRUCTURE_READ, MSP_MIN_BYTES, MSP_API_SIMULATOR_RESPONSE =
 
 -- set read structure
 local MSP_API_STRUCTURE_WRITE = MSP_API_STRUCTURE_READ
-
-
-
 
 -- Variable to store parsed MSP data
 local mspData = nil
@@ -57,59 +54,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

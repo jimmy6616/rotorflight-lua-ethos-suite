@@ -22,21 +22,21 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- Define the MSP response data structures
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "main_rotor_dir",                 type = "U8",  apiVersion = 12.06, simResponse = {0}, table={rfsuite.i18n.get("api.MIXER_CONFIG.tbl_cw"),rfsuite.i18n.get("api.MIXER_CONFIG.tbl_ccw")}, tableIdxInc = -1},
-    {field = "tail_rotor_mode",                type = "U8",  apiVersion = 12.06, simResponse = {0}},
-    {field = "tail_motor_idle",                type = "U8",  apiVersion = 12.06, simResponse = {0}, default = 0, unit = "%", min = 0, max = 250, decimals = 1, scale = 10},
-    {field = "tail_center_trim",               type = "S16", apiVersion = 12.06, simResponse = {165, 1}, default = 0,  min = -500, max = 500, decimals = 1, scale = 10, mult = 0.239923224568138},
-    {field = "swash_type",                     type = "U8",  apiVersion = 12.06, simResponse = {0}, table={"None", "Direct", "CPPM 120", "CPPM 135", "CPPM 140", "FPM 90 L", "FPM 90 V"}, tableIdxInc = -1},
-    {field = "swash_ring",                     type = "U8",  apiVersion = 12.06, simResponse = {2}},
-    {field = "swash_phase",                    type = "S16", apiVersion = 12.06, simResponse = {100, 0}, default = 0, min = -1800, max = 1800, decimals = 1, scale = 10},
-    {field = "swash_pitch_limit",              type = "U16", apiVersion = 12.06, simResponse = {131, 6}, default = 0, min = 0, max = 360, decimals = 1, step = 1, mult = 0.01200192},
-    {field = "swash_trim_0",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10},
-    {field = "swash_trim_1",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10},
-    {field = "swash_trim_2",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10},
-    {field = "swash_tta_precomp",              type = "U8",  apiVersion = 12.06, simResponse = {0}, default = 0, min = 0, max = 250},
-    {field = "swash_geo_correction",           type = "S8",  apiVersion = 12.07, simResponse = {0}, default = 0, min = -250, max = 250, decimals = 1, scale = 5, step = 2},
-    {field = "collective_tilt_correction_pos", type = "S8",  apiVersion = 12.08, simResponse = {0}, default = 0, min = -100, max = 100},
-    {field = "collective_tilt_correction_neg", type = "S8",  apiVersion = 12.08, simResponse = {10}, default = 10, min = -100, max = 100},
+    {field = "main_rotor_dir",                 type = "U8",  apiVersion = 12.06, simResponse = {0}, table={"@i18n(api.MIXER_CONFIG.tbl_cw)@","@i18n(api.MIXER_CONFIG.tbl_ccw)@"}, tableIdxInc = -1, help = "@i18n(api.MIXER_CONFIG.main_rotor_dir)@"},
+    {field = "tail_rotor_mode",                type = "U8",  apiVersion = 12.06, simResponse = {0}, help = "@i18n(api.MIXER_CONFIG.tail_rotor_mode)@"},
+    {field = "tail_motor_idle",                type = "U8",  apiVersion = 12.06, simResponse = {0}, default = 0, unit = "%", min = 0, max = 250, decimals = 1, scale = 10, help = "@i18n(api.MIXER_CONFIG.tail_motor_idle)@"},
+    {field = "tail_center_trim",               type = "S16", apiVersion = 12.06, simResponse = {165, 1}, default = 0,  min = -500, max = 500, decimals = 1, scale = 10, mult = 0.239923224568138, help = "@i18n(api.MIXER_CONFIG.tail_center_trim)@"},
+    {field = "swash_type",                     type = "U8",  apiVersion = 12.06, simResponse = {0}, table={"None", "Direct", "CPPM 120", "CPPM 135", "CPPM 140", "FPM 90 L", "FPM 90 V"}, tableIdxInc = -1, help = "@i18n(api.MIXER_CONFIG.swash_type)@"},
+    {field = "swash_ring",                     type = "U8",  apiVersion = 12.06, simResponse = {2}, help = "@i18n(api.MIXER_CONFIG.swash_ring)@"},
+    {field = "swash_phase",                    type = "S16", apiVersion = 12.06, simResponse = {100, 0}, default = 0, min = -1800, max = 1800, decimals = 1, scale = 10, help = "@i18n(api.MIXER_CONFIG.swash_phase)@"},
+    {field = "swash_pitch_limit",              type = "U16", apiVersion = 12.06, simResponse = {131, 6}, default = 0, min = 0, max = 360, decimals = 1, step = 1, mult = 0.01200192, help = "@i18n(api.MIXER_CONFIG.swash_pitch_limit)@"},
+    {field = "swash_trim_0",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10, help = "@i18n(api.MIXER_CONFIG.swash_trim_0)@"},
+    {field = "swash_trim_1",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10, help = "@i18n(api.MIXER_CONFIG.swash_trim_1)@"},
+    {field = "swash_trim_2",                   type = "S16", apiVersion = 12.06, simResponse = {0, 0}, default = 0, min = -1000, max = 1000, decimals = 1, scale = 10, help = "@i18n(api.MIXER_CONFIG.swash_trim_2)@"},
+    {field = "swash_tta_precomp",              type = "U8",  apiVersion = 12.06, simResponse = {0}, default = 0, min = 0, max = 250, help = "@i18n(api.MIXER_CONFIG.swash_tta_precomp)@"},
+    {field = "swash_geo_correction",           type = "S8",  apiVersion = 12.07, simResponse = {0}, default = 0, min = -250, max = 250, decimals = 1, scale = 5, step = 2, help = "@i18n(api.MIXER_CONFIG.swash_geo_correction)@"},
+    {field = "collective_tilt_correction_pos", type = "S8",  apiVersion = 12.08, simResponse = {0}, default = 0, min = -100, max = 100, help = "@i18n(api.MIXER_CONFIG.collective_tilt_correction_pos)@"},
+    {field = "collective_tilt_correction_neg", type = "S8",  apiVersion = 12.08, simResponse = {10}, default = 10, min = -100, max = 100, help = "@i18n(api.MIXER_CONFIG.collective_tilt_correction_neg)@"},
 }
 
 -- Process structure in one pass
@@ -59,59 +59,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

@@ -35,91 +35,137 @@ local utils = rfsuite.widgets.dashboard.utils
 local getParam = utils.getParam
 local resolveThemeColor = utils.resolveThemeColor
 local loadImage = rfsuite.utils.loadImage
-local lastCraftName = nil
-local imagePath
 
+-- External invalidation when runtime params/theme change
+function render.invalidate(box) box._cfg = nil end
+
+-- Only repaint when displayed image path changes
 function render.dirty(box)
-    if box._lastImagePath ~= box.imagePath then
-        box._lastImagePath = box._imagePath
+    if box._lastDisplayValue == nil then
+        box._lastDisplayValue = box._currentDisplayValue
+        return true
+    end
+    if box._lastDisplayValue ~= box._currentDisplayValue then
+        box._lastDisplayValue = box._currentDisplayValue
         return true
     end
     return false
 end
 
-function render.wakeup(box)
+-- Simple in-memory image-path cache keyed by craft name
+local _imgCache = {}
+
+local function resolveModelImage(cfg)
+    -- 1) Craft name specific bitmap in /bitmaps/models/<craft>.(png|bmp)
     local craftName = rfsuite and rfsuite.session and rfsuite.session.craftName
-    --local modelID   = rfsuite and rfsuite.session and rfsuite.session.modelID
-    if craftName and craftName ~= lastCraftName then
-        local pngPath = "/bitmaps/models/" .. craftName .. ".png"
-        local bmpPath = "/bitmaps/models/" .. craftName .. ".bmp"
-        imagePath = loadImage(pngPath, bmpPath)
-        lastCraftName = craftName
+    if craftName and craftName ~= "" then
+        local cached = _imgCache[craftName]
+        if cached == nil then
+            local base = "/bitmaps/models/" .. craftName
+            local pngPath = base .. ".png"
+            local bmpPath = base .. ".bmp"
+            cached = loadImage and (loadImage(pngPath) or loadImage(bmpPath))
+            _imgCache[craftName] = cached or false -- remember miss too
+        end
+        if cached then return cached end
     end
 
-    --if not imagePath and modelID then
-    --    local pngPath = "/bitmaps/models/" .. modelID .. ".png"
-    --    local bmpPath = "/bitmaps/models/" .. modelID .. ".bmp"
-    --    imagePath = loadImage(pngPath, bmpPath)
-    --end
-
-    if not imagePath and model and model.bitmap then
+    -- 2) Radio model bitmap if present and non-default
+    if model and model.bitmap then
         local bm = model.bitmap()
         if bm and type(bm) == "string" and not string.find(bm, "default_") then
-            imagePath = bm
+            return bm
         end
     end
 
-    if not imagePath then
-        imagePath = loadImage("widgets/dashboard/gfx/logo.png")
+    -- 3) Explicit param override (optional)
+    local paramImage = getParam(cfg.box, "image")
+    if paramImage and paramImage ~= "" then
+        local base = paramImage:gsub("%.png$", ""):gsub("%.bmp$", "")
+        local pngPath = base .. ".png"
+        local bmpPath = base .. ".bmp"
+        return (loadImage and (loadImage(pngPath) or loadImage(bmpPath))) or paramImage
     end
 
-    box._currentDisplayValue = imagePath
+    -- 4) Fallback
+    return "widgets/dashboard/gfx/logo.png"
+end
 
-    box._cache = {
-        title              = utils.getParam(box, "title"),
-        titlepos           = utils.getParam(box, "titlepos"),
-        titlealign         = utils.getParam(box, "titlealign"),
-        titlefont          = utils.getParam(box, "titlefont"),
-        titlespacing       = utils.getParam(box, "titlespacing"),
-        titlecolor         = utils.resolveThemeColor("titlecolor", utils.getParam(box, "titlecolor")),
-        titlepadding       = utils.getParam(box, "titlepadding"),
-        titlepaddingleft   = utils.getParam(box, "titlepaddingleft"),
-        titlepaddingright  = utils.getParam(box, "titlepaddingright"),
-        titlepaddingtop    = utils.getParam(box, "titlepaddingtop"),
-        titlepaddingbottom = utils.getParam(box, "titlepaddingbottom"),
-        displayValue       = nil,
-        unit               = nil,
-        font               = nil,
-        valuealign         = nil,
-        textcolor          = nil,
-        valuepadding       = utils.getParam(box, "valuepadding"),
-        valuepaddingleft   = utils.getParam(box, "valuepaddingleft"),
-        valuepaddingright  = utils.getParam(box, "valuepaddingright"),
-        valuepaddingtop    = utils.getParam(box, "valuepaddingtop"),
-        valuepaddingbottom = utils.getParam(box, "valuepaddingbottom"),
-        bgcolor            = utils.resolveThemeColor("bgcolor", utils.getParam(box, "bgcolor")),
-        image              = imagePath,
-        imagewidth         = utils.getParam(box, "imagewidth"),
-        imageheight        = utils.getParam(box, "imageheight"),
-        imagealign         = utils.getParam(box, "imagealign")
-    }
+-- Build/refresh static config (theme/params aware)
+local function ensureCfg(box)
+    local theme_version = (rfsuite and rfsuite.theme and rfsuite.theme.version) or 0
+    local param_version = box._param_version or 0 -- bump externally when params change
+    local cfg = box._cfg
+    if (not cfg) or (cfg._theme_version ~= theme_version) or (cfg._param_version ~= param_version) then
+        cfg = {}
+        cfg._theme_version     = theme_version
+        cfg._param_version     = param_version
+        cfg.box                = box -- for resolveModelImage param lookups
+
+        cfg.title              = getParam(box, "title")
+        cfg.titlepos           = getParam(box, "titlepos")
+        cfg.titlealign         = getParam(box, "titlealign")
+        cfg.titlefont          = getParam(box, "titlefont")
+        cfg.titlespacing       = getParam(box, "titlespacing")
+        cfg.titlecolor         = resolveThemeColor("titlecolor", getParam(box, "titlecolor"))
+        cfg.titlepadding       = getParam(box, "titlepadding")
+        cfg.titlepaddingleft   = getParam(box, "titlepaddingleft")
+        cfg.titlepaddingright  = getParam(box, "titlepaddingright")
+        cfg.titlepaddingtop    = getParam(box, "titlepaddingtop")
+        cfg.titlepaddingbottom = getParam(box, "titlepaddingbottom")
+
+        cfg.valuepadding       = getParam(box, "valuepadding")
+        cfg.valuepaddingleft   = getParam(box, "valuepaddingleft")
+        cfg.valuepaddingright  = getParam(box, "valuepaddingright")
+        cfg.valuepaddingtop    = getParam(box, "valuepaddingtop")
+        cfg.valuepaddingbottom = getParam(box, "valuepaddingbottom")
+
+        cfg.bgcolor            = resolveThemeColor("bgcolor", getParam(box, "bgcolor"))
+
+        cfg.imagewidth         = getParam(box, "imagewidth")
+        cfg.imageheight        = getParam(box, "imageheight")
+        cfg.imagealign         = getParam(box, "imagealign")
+
+        -- Resolve once now
+        cfg.image              = resolveModelImage(cfg)
+
+        box._cfg = cfg
+    end
+    return box._cfg
+end
+
+function render.wakeup(box)
+    local cfg = ensureCfg(box)
+
+    -- If craftName changed since last tick, refresh the image path
+    local craftName = rfsuite and rfsuite.session and rfsuite.session.craftName
+    if cfg._lastCraftName ~= craftName then
+        cfg.image = resolveModelImage(cfg)
+        cfg._lastCraftName = craftName
+    end
+
+    -- Dynamic part is just the path
+    box._currentDisplayValue = cfg.image
 end
 
 function render.paint(x, y, w, h, box)
     x, y = utils.applyOffset(x, y, box)
-    local c = box._cache or {}
+    local c = box._cfg or {}
 
     utils.box(
         x, y, w, h,
         c.title, c.titlepos, c.titlealign, c.titlefont, c.titlespacing,
         c.titlecolor, c.titlepadding, c.titlepaddingleft, c.titlepaddingright,
         c.titlepaddingtop, c.titlepaddingbottom,
-        c.displayValue, c.unit, c.font, c.valuealign, c.textcolor,
+        nil, nil, nil, nil, nil, -- no value text
         c.valuepadding, c.valuepaddingleft, c.valuepaddingright,
         c.valuepaddingtop, c.valuepaddingbottom,
         c.bgcolor,
         c.image, c.imagewidth, c.imageheight, c.imagealign
     )
 end
+
+-- Image rarely changes; relaxed scheduler
+render.scheduler = 2.0
 
 return render

@@ -18,11 +18,12 @@
 
 ]] --
 local init = {
-    title = rfsuite.i18n.get("app.modules.sbusout.name"), -- title of the page
+    title = "@i18n(app.modules.sbusout.name)@", -- title of the page
     section = "hardware", -- do not run if busy with msp
     script = "sbusout.lua", -- run this script
     image = "sbusout.png", -- image for the page
     order = 3, -- order in the section
+    loaderspeed = true, -- show faster loader when opening this page
     ethosversion = {1,6,2}, -- disable button if ethos version is less than this
     mspversion = 12.07 -- disable button if msp version is less than this
 }

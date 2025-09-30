@@ -23,27 +23,27 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- Define the MSP response data structures
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "pid_0_P", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 50},
-    {field = "pid_0_I", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100},
-    {field = "pid_0_D", type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0, max = 1000, default = 0},
-    {field = "pid_0_F", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100},
+    {field = "pid_0_P", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 50, help = "@i18n(api.PID_TUNING.pid_0_P)@"},
+    {field = "pid_0_I", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100, help = "@i18n(api.PID_TUNING.pid_0_I)@"},
+    {field = "pid_0_D", type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0, max = 1000, default = 0, help = "@i18n(api.PID_TUNING.pid_0_D)@"},
+    {field = "pid_0_F", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100, help = "@i18n(api.PID_TUNING.pid_0_F)@"},
     
-    {field = "pid_1_P", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 50},
-    {field = "pid_1_I", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100},
-    {field = "pid_1_D", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 40},
-    {field = "pid_1_F", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100},
+    {field = "pid_1_P", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 50, help = "@i18n(api.PID_TUNING.pid_1_P)@"},
+    {field = "pid_1_I", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100, help = "@i18n(api.PID_TUNING.pid_1_I)@"},
+    {field = "pid_1_D", type = "U16", apiVersion = 12.06, simResponse = {50, 0},  min = 0, max = 1000, default = 40, help = "@i18n(api.PID_TUNING.pid_1_D)@"},
+    {field = "pid_1_F", type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0, max = 1000, default = 100, help = "@i18n(api.PID_TUNING.pid_1_F)@"},
   
-    {field = "pid_2_P", type = "U16", apiVersion = 12.06, simResponse = {80, 0},  min = 0, max = 1000, default = 80},
-    {field = "pid_2_I", type = "U16", apiVersion = 12.06, simResponse = {120, 0}, min = 0, max = 1000, default = 120},
-    {field = "pid_2_D", type = "U16", apiVersion = 12.06, simResponse = {40, 0},  min = 0, max = 1000, default = 10},
-    {field = "pid_2_F", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0},
+    {field = "pid_2_P", type = "U16", apiVersion = 12.06, simResponse = {80, 0},  min = 0, max = 1000, default = 80, help = "@i18n(api.PID_TUNING.pid_2_P)@"},
+    {field = "pid_2_I", type = "U16", apiVersion = 12.06, simResponse = {120, 0}, min = 0, max = 1000, default = 120, help = "@i18n(api.PID_TUNING.pid_2_I)@"},
+    {field = "pid_2_D", type = "U16", apiVersion = 12.06, simResponse = {40, 0},  min = 0, max = 1000, default = 10, help = "@i18n(api.PID_TUNING.pid_2_D)@"},
+    {field = "pid_2_F", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0, help = "@i18n(api.PID_TUNING.pid_2_F)@"},
   
-    {field = "pid_0_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0},
-    {field = "pid_1_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0},
-    {field = "pid_2_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0},
+    {field = "pid_0_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0, help = "@i18n(api.PID_TUNING.pid_0_B)@"},
+    {field = "pid_1_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0, help = "@i18n(api.PID_TUNING.pid_1_B)@"},
+    {field = "pid_2_B", type = "U16", apiVersion = 12.06, simResponse = {0, 0},   min = 0, max = 1000, default = 0}, help = "@i18n(api.PID_TUNING.pid_2_B)@",
  
-    {field = "pid_0_O", type = "U16", apiVersion = 12.06, simResponse = {45, 0},  min = 0, max = 1000, default = 45},
-    {field = "pid_1_O", type = "U16", apiVersion = 12.06, simResponse = {45, 0},  min = 0, max = 1000, default = 45}
+    {field = "pid_0_O", type = "U16", apiVersion = 12.06, simResponse = {45, 0},  min = 0, max = 1000, default = 45, help = "@i18n(api.PID_TUNING.pid_0_O)@"},
+    {field = "pid_1_O", type = "U16", apiVersion = 12.06, simResponse = {45, 0},  min = 0, max = 1000, default = 45, help = "@i18n(api.PID_TUNING.pid_1_O)@"},
 }
 
 -- Process structure in one pass
@@ -67,59 +67,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

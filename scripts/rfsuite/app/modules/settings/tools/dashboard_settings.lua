@@ -1,4 +1,4 @@
-local i18n = rfsuite.i18n.get
+
 
 local themesBasePath = "SCRIPTS:/" .. rfsuite.config.baseDir .. "/widgets/dashboard/themes/"
 local themesUserPath = "SCRIPTS:/" .. rfsuite.config.preferences .. "/dashboard/"
@@ -28,7 +28,7 @@ local function openPage(pidx, title, script)
     rfsuite.app.lastScript = script
 
     rfsuite.app.ui.fieldHeader(
-        i18n("app.modules.settings.name") .. " / " .. i18n("app.modules.settings.dashboard") .. " / " .. i18n("app.modules.settings.dashboard_settings")
+        "@i18n(app.modules.settings.name)@" .. " / " .. "@i18n(app.modules.settings.dashboard)@" .. " / " .. "@i18n(app.modules.settings.dashboard_settings)@"
     )
 
     -- Icon/button layout settings
@@ -94,7 +94,7 @@ local function openPage(pidx, title, script)
                     -- Optional: your action when pressing a theme
                     -- Example: rfsuite.app.ui.loadTheme(theme.folder)
                     rfsuite.preferences.menulastselected["settings_dashboard_themes"] = idx
-                rfsuite.app.ui.progressDisplay()
+                rfsuite.app.ui.progressDisplay(nil,nil,true)
                     local configure = theme.configure
                     local source = theme.source
                     local folder = theme.folder
@@ -130,7 +130,7 @@ local function openPage(pidx, title, script)
 
     if n == 0 then
         local w, h = lcd.getWindowSize()
-        local msg = i18n("app.modules.settings.no_themes_available_to_configure")
+        local msg = "@i18n(app.modules.settings.no_themes_available_to_configure)@"
         local tw, th = lcd.getTextSize(msg)
         local x = w / 2 - tw / 2
         local y = h / 2 - th / 2
@@ -152,7 +152,7 @@ local function event(widget, category, value, x, y)
     if category == EVT_CLOSE and value == 0 or value == 35 then
         rfsuite.app.ui.openPage(
             pageIdx,
-            i18n("app.modules.settings.dashboard"),
+            "@i18n(app.modules.settings.dashboard)@",
             "settings/tools/dashboard.lua"
         )
         return true
@@ -160,12 +160,12 @@ local function event(widget, category, value, x, y)
 end
 
 local function onNavMenu()
-    rfsuite.app.ui.progressDisplay()
-        rfsuite.app.ui.openPage(
-            pageIdx,
-            i18n("app.modules.settings.dashboard"),
-            "settings/tools/dashboard.lua"
-        )
+    rfsuite.app.ui.progressDisplay(nil,nil,true)
+    rfsuite.app.ui.openPage(
+        pageIdx,
+        "@i18n(app.modules.settings.dashboard)@",
+        "settings/tools/dashboard.lua"
+    )
         return true
 end
 

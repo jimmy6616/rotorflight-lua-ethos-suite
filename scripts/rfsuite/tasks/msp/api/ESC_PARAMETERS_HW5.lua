@@ -23,15 +23,15 @@ local MSP_SIGNATURE = 0xFD
 local MSP_HEADER_BYTES = 2
 
 -- some tables used in structure below
-local flightMode = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_fixedwing"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_heliext"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_heligov"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_helistore")}
-local rotation = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_cw"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_ccw")}
-local lipoCellCount = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_autocalculate"), "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "11S", "12S", "13S", "14S"}
-local cutoffType = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_softcutoff"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_hardcutoff")}
-local cutoffVoltage = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_disabled"), "2.8", "2.9", "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8"}
+local flightMode = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_fixedwing)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_heliext)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_heligov)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_helistore)@"}
+local rotation = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_cw)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_ccw)@"}
+local lipoCellCount = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_autocalculate)@", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "11S", "12S", "13S", "14S"}
+local cutoffType = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_softcutoff)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_hardcutoff)@"}
+local cutoffVoltage = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_disabled)@", "2.8", "2.9", "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8"}
 local restartTime = {"1s", "1.5s", "2s", "2.5s", "3s"}
 local startupPower = {"1", "2", "3", "4", "5", "6", "7"}
-local enabledDisabled = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_enabled"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_disabled")}
-local brakeType = {rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_disabled"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_normal"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_proportional"), rfsuite.i18n.get("api.ESC_PARAMETERS_HW5.tbl_reverse")}
+local enabledDisabled = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_enabled)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_disabled)@"}
+local brakeType = {"@i18n(api.ESC_PARAMETERS_HW5.tbl_disabled)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_normal)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_proportional)@", "@i18n(api.ESC_PARAMETERS_HW5.tbl_reverse)@"}
 
 
 -- Lookup table of model number to supported voltages
@@ -48,28 +48,28 @@ local voltage_lookup = {
 voltages = voltage_lookup["default"] -- Default voltage values
 
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "esc_signature",       type = "U8", apiVersion = 12.07, simResponse = {253}},
-    {field = "esc_command",         type = "U8", apiVersion = 12.07, simResponse = {0}},
-    {field = "firmware_version",    type = "U128", apiVersion = 12.07, simResponse = {32, 32, 32, 80, 76, 45, 48, 52, 46, 49, 46, 48, 50, 32, 32, 32}},      
-    {field = "hardware_version",    type = "U128", apiVersion = 12.07, simResponse = {72, 87, 49, 49, 48, 54, 95, 86, 49, 48, 48, 52, 53, 54, 78, 66}},    
-    {field = "esc_type",            type = "U128", apiVersion = 12.07, simResponse = {80, 108, 97, 116, 105, 110, 117, 109, 95, 86, 53, 32, 32, 32, 32, 32}},   
-    {field = "com_version",         type = "U120", apiVersion = 12.07, simResponse = {80, 108, 97, 116, 105, 110, 117, 109, 32, 86, 53, 32, 32, 32, 32}},  
-    {field = "flight_mode",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #flightMode, tableIdxInc = -1, table = flightMode},
-    {field = "lipo_cell_count",     type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #lipoCellCount, tableIdxInc = -1, table = lipoCellCount},
-    {field = "volt_cutoff_type",    type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #cutoffType, tableIdxInc = -1, table = cutoffType},
-    {field = "cutoff_voltage",      type = "U8", apiVersion = 12.07, simResponse = {3}, default = 3, min = 0, max = #cutoffVoltage, tableIdxInc = -1, table = cutoffVoltage},
-    {field = "bec_voltage",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #voltages, tableIdxInc = -1, table = voltages},
-    {field = "startup_time",        type = "U8", apiVersion = 12.07, simResponse = {11}, default = 0, min = 4, max = 25, unit = "s"},
-    {field = "gov_p_gain",          type = "U8", apiVersion = 12.07, simResponse = {6}, default = 0, min = 0, max = 9},
-    {field = "gov_i_gain",          type = "U8", apiVersion = 12.07, simResponse = {5}, default = 0, min = 0, max = 9},
-    {field = "auto_restart",        type = "U8", apiVersion = 12.07, simResponse = {25}, default = 25, units = "s", min = 0, max = 90},
-    {field = "restart_time",        type = "U8", apiVersion = 12.07, simResponse = {1}, default = 1, tableIdxInc = -1, min = 0, max = #restartTime, table = restartTime},
-    {field = "brake_type",          type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #brakeType, xvals = {76}, table = brakeType, tableIdxInc = -1},
-    {field = "brake_force",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = 100},
-    {field = "timing",              type = "U8", apiVersion = 12.07, simResponse = {24}, default = 0, min = 0, max = 30},
-    {field = "rotation",            type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #rotation, tableIdxInc = -1, table = rotation},
-    {field = "active_freewheel",    type = "U8", apiVersion = 12.07, simResponse = {0}, min = 0, max = #enabledDisabled, table = enabledDisabled, tableIdxInc = -1},
-    {field = "startup_power",       type = "U8", apiVersion = 12.07, simResponse = {2}, default = 2, min = 0, max = #startupPower, tableIdxInc = -1, table = startupPower}
+    {field = "esc_signature",       type = "U8", apiVersion = 12.07, simResponse = {253}, help = "@i18n(api.ESC_PARAMETERS_HW5.esc_signature)@"},
+    {field = "esc_command",         type = "U8", apiVersion = 12.07, simResponse = {0}, help = "@i18n(api.ESC_PARAMETERS_HW5.esc_command)@"},
+    {field = "firmware_version",    type = "U128", apiVersion = 12.07, simResponse = {32, 32, 32, 80, 76, 45, 48, 52, 46, 49, 46, 48, 50, 32, 32, 32}, help = "@i18n(api.ESC_PARAMETERS_HW5.firmware_version)@"},      
+    {field = "hardware_version",    type = "U128", apiVersion = 12.07, simResponse = {72, 87, 49, 49, 48, 54, 95, 86, 49, 48, 48, 52, 53, 54, 78, 66}, help = "@i18n(api.ESC_PARAMETERS_HW5.hardware_version)@"},    
+    {field = "esc_type",            type = "U128", apiVersion = 12.07, simResponse = {80, 108, 97, 116, 105, 110, 117, 109, 95, 86, 53, 32, 32, 32, 32, 32}, help = "@i18n(api.ESC_PARAMETERS_HW5.esc_type)@"},   
+    {field = "com_version",         type = "U120", apiVersion = 12.07, simResponse = {80, 108, 97, 116, 105, 110, 117, 109, 32, 86, 53, 32, 32, 32, 32}, help = "@i18n(api.ESC_PARAMETERS_HW5.com_version)@"},  
+    {field = "flight_mode",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #flightMode, tableIdxInc = -1, table = flightMode, help = "@i18n(api.ESC_PARAMETERS_HW5.flight_mode)@"},
+    {field = "lipo_cell_count",     type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #lipoCellCount, tableIdxInc = -1, table = lipoCellCount, help = "@i18n(api.ESC_PARAMETERS_HW5.lipo_cell_count)@"},
+    {field = "volt_cutoff_type",    type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #cutoffType, tableIdxInc = -1, table = cutoffType, help = "@i18n(api.ESC_PARAMETERS_HW5.volt_cutoff_type)@"},
+    {field = "cutoff_voltage",      type = "U8", apiVersion = 12.07, simResponse = {3}, default = 3, min = 0, max = #cutoffVoltage, tableIdxInc = -1, table = cutoffVoltage, help = "@i18n(api.ESC_PARAMETERS_HW5.cutoff_voltage)@"},
+    {field = "bec_voltage",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #voltages, tableIdxInc = -1, table = voltages, help = "@i18n(api.ESC_PARAMETERS_HW5.bec_voltage)@"},
+    {field = "startup_time",        type = "U8", apiVersion = 12.07, simResponse = {11}, default = 0, min = 4, max = 25, unit = "s", help = "@i18n(api.ESC_PARAMETERS_HW5.startup_time)@"},
+    {field = "gov_p_gain",          type = "U8", apiVersion = 12.07, simResponse = {6}, default = 0, min = 0, max = 9, help = "@i18n(api.ESC_PARAMETERS_HW5.gov_p_gain)@"},
+    {field = "gov_i_gain",          type = "U8", apiVersion = 12.07, simResponse = {5}, default = 0, min = 0, max = 9, help = "@i18n(api.ESC_PARAMETERS_HW5.gov_i_gain)@"},
+    {field = "auto_restart",        type = "U8", apiVersion = 12.07, simResponse = {25}, default = 25, units = "s", min = 0, max = 90, help = "@i18n(api.ESC_PARAMETERS_HW5.auto_restart)@"},
+    {field = "restart_time",        type = "U8", apiVersion = 12.07, simResponse = {1}, default = 1, tableIdxInc = -1, min = 0, max = #restartTime, table = restartTime, help = "@i18n(api.ESC_PARAMETERS_HW5.restart_time)@"},
+    {field = "brake_type",          type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #brakeType, xvals = {76}, table = brakeType, tableIdxInc = -1, help = "@i18n(api.ESC_PARAMETERS_HW5.brake_type)@"},
+    {field = "brake_force",         type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = 100, help = "@i18n(api.ESC_PARAMETERS_HW5.brake_force)@"},
+    {field = "timing",              type = "U8", apiVersion = 12.07, simResponse = {24}, default = 0, min = 0, max = 30, help = "@i18n(api.ESC_PARAMETERS_HW5.timing)@"},
+    {field = "rotation",            type = "U8", apiVersion = 12.07, simResponse = {0}, default = 0, min = 0, max = #rotation, tableIdxInc = -1, table = rotation, help = "@i18n(api.ESC_PARAMETERS_HW5.rotation)@"},
+    {field = "active_freewheel",    type = "U8", apiVersion = 12.07, simResponse = {0}, min = 0, max = #enabledDisabled, table = enabledDisabled, tableIdxInc = -1, default = 0, help = "@i18n(api.ESC_PARAMETERS_HW5.active_freewheel)@"},
+    {field = "startup_power",       type = "U8", apiVersion = 12.07, simResponse = {2}, default = 2, min = 0, max = #startupPower, tableIdxInc = -1, table = startupPower, help = "@i18n(api.ESC_PARAMETERS_HW5.startup_power)@"},
 }
 
 -- Process structure in one pass
@@ -92,59 +92,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, voltage_lookup, function(result) -- note.  we pass the voltage lookup table to the parseMSPData function to return as
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

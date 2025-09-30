@@ -15,7 +15,7 @@
  * Note: Some icons have been sourced from https://www.flaticon.com/
 ]]--
 
-local i18n = rfsuite.i18n.get
+
 local utils = rfsuite.widgets.dashboard.utils
 
 local headeropts = utils.getHeaderOptions()
@@ -68,7 +68,8 @@ local themeOptions = {
     ls_full = { 
         font = "FONT_XXL", 
         advfont = "FONT_M",
-        titlefont = "FONT_XXS", 
+        titlefont = "FONT_XXS",
+        brfont = "FONT_XL",
         thickness = 32, 
         batteryframethickness = 4, 
         titlepaddingbottom = 25, 
@@ -85,7 +86,8 @@ local themeOptions = {
     ls_std  = { 
         font = "FONT_XL", 
         advfont = "FONT_M",
-        titlefont = "FONT_XXS",  
+        titlefont = "FONT_XXS",
+        brfont = "FONT_XL", 
         thickness = 18, 
         batteryframethickness = 3, 
         titlepaddingbottom = 25, 
@@ -103,7 +105,8 @@ local themeOptions = {
     ms_full = { 
         font = "FONT_XXL", 
         advfont = "FONT_M",
-        titlefont = "FONT_XXS", 
+        titlefont = "FONT_XXS",
+        brfont = "FONT_L",
         thickness = 19, 
         batteryframethickness = 3, 
         titlepaddingbottom = 20, 
@@ -111,7 +114,7 @@ local themeOptions = {
         valuepaddingtop = 10,
         gvaluepaddingtop = 20, 
         valuepaddingbottom = 25, 
-        brvaluepaddingbottom = 15,
+        brvaluepaddingbottom = 8,
         gaugepaddingtop = 5, 
         battadvpaddingtop = 2,
         cappaddingright = 2 
@@ -120,7 +123,8 @@ local themeOptions = {
     ms_std  = { 
         font = "FONT_XL", 
         advfont = "FONT_S",
-        titlefont = "FONT_XXS", 
+        titlefont = "FONT_XXS",
+        brfont = "FONT_L", 
         thickness = 14, 
         batteryframethickness = 2, 
         titlepaddingbottom = 10, 
@@ -128,7 +132,7 @@ local themeOptions = {
         valuepaddingtop = 10,
         gvaluepaddingtop = 20, 
         valuepaddingbottom = 25,
-        brvaluepaddingbottom = 15,
+        brvaluepaddingbottom = 8,
         gaugepaddingtop = 5, 
         battadvpaddingtop = 3,
         cappaddingright = 3
@@ -138,7 +142,8 @@ local themeOptions = {
     ss_full = { 
         font = "FONT_XL", 
         advfont = "FONT_M",
-        titlefont = "FONT_XXS",  
+        titlefont = "FONT_XXS",
+        brfont = "FONT_XL", 
         thickness = 25,  
         batteryframethickness = 3, 
         titlepaddingbottom = 15, 
@@ -155,7 +160,8 @@ local themeOptions = {
     ss_std  = { 
         font = "FONT_XL", 
         advfont = "FONT_S",
-        titlefont = "FONT_XXS", 
+        titlefont = "FONT_XXS",
+        brfont = "FONT_XL",
         thickness = 14,  
         batteryframethickness = 2, 
         titlepaddingbottom = 15, 
@@ -227,9 +233,9 @@ local function buildBoxes(W)
             type = "text", 
             subtype = "telemetry", 
             source = "rate_profile",
-            title = i18n("widgets.dashboard.rates"):upper(), 
+            title = "@i18n(widgets.dashboard.rates):upper()@", 
             titlepos = "bottom",
-            font = "FONT_XL",
+            font = opts.brfont,
             titlefont = opts.titlefont,
             valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
@@ -250,9 +256,9 @@ local function buildBoxes(W)
             type = "text", 
             subtype = "telemetry", 
             source = "pid_profile",
-            title = i18n("widgets.dashboard.profile"):upper(), 
+            title = "@i18n(widgets.dashboard.profile):upper()@", 
             titlepos = "bottom",
-            font = "FONT_XL",
+            font = opts.brfont,
             titlefont = opts.titlefont,
             valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
@@ -260,8 +266,8 @@ local function buildBoxes(W)
             transform = "floor",
             thresholds = {
                 { value = 1.5, textcolor = "blue" },
-                { value = 2.5, colorMode.fillwarncolor },
-                { value = 6,   colorMode.fillcolor }
+                { value = 2.5, textcolor = colorMode.fillwarncolor },
+                { value = 6,   textcolor = colorMode.fillcolor }
             }
         },
         
@@ -272,9 +278,9 @@ local function buildBoxes(W)
             rowspan = 2,
             type = "time", 
             subtype = "count",
-            title = i18n("widgets.dashboard.flights"):upper(), 
+            title = "@i18n(widgets.dashboard.flights):upper()@", 
             titlepos = "bottom",
-            font = "FONT_XL",
+            font = opts.brfont,
             titlefont = opts.titlefont,
             valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
@@ -327,7 +333,7 @@ local function buildBoxes(W)
             type = "gauge", 
             subtype = "arc", 
             source = "bec_voltage",
-            title = i18n("widgets.dashboard.bec_voltage"):upper(), 
+            title = "@i18n(widgets.dashboard.bec_voltage):upper()@", 
             titlepos = "bottom",
             decimals = 1,         
             titlepaddingbottom = opts.titlepaddingbottom,
@@ -354,9 +360,9 @@ local function buildBoxes(W)
             rowspan = 2,
             type = "text", 
             subtype = "blackbox",
-            title = i18n("widgets.dashboard.blackbox"):upper(), 
+            title = "@i18n(widgets.dashboard.blackbox):upper()@", 
             titlepos = "bottom",
-            font = "FONT_XL",
+            font = opts.brfont,
             titlefont = opts.titlefont, 
             valuepaddingbottom = opts.brvaluepaddingbottom,
             decimals = 0,
@@ -379,7 +385,7 @@ local function buildBoxes(W)
             type = "gauge", 
             subtype = "arc", 
             source = "temp_esc",
-            title = i18n("widgets.dashboard.esc_temp"):upper(), 
+            title = "@i18n(widgets.dashboard.esc_temp):upper()@", 
             titlepos = "bottom",
             font = opts.font,
             min = 0, 
@@ -408,21 +414,21 @@ local function buildBoxes(W)
             rowspan = 2,
             type = "text", 
             subtype = "governor",
-            title = i18n("widgets.dashboard.governor"):upper(), 
+            title = "@i18n(widgets.dashboard.governor):upper()@", 
             titlepos = "bottom",
-            font = "FONT_XL",
+            font = opts.brfont,
             titlefont = opts.titlefont,
             valuepaddingbottom = opts.brvaluepaddingbottom,
             bgcolor = colorMode.bgcolor, 
             titlecolor = colorMode.titlecolor,
             thresholds = {
-                { value = i18n("widgets.governor.DISARMED"), textcolor = colorMode.fillcritcolor },
-                { value = i18n("widgets.governor.OFF"), textcolor = colorMode.fillcritcolor },
-                { value = i18n("widgets.governor.IDLE"), textcolor = "blue" },
-                { value = i18n("widgets.governor.SPOOLUP"), textcolor = "blue" },
-                { value = i18n("widgets.governor.RECOVERY"), textcolor = colorMode.fillwarncolor },
-                { value = i18n("widgets.governor.ACTIVE"), textcolor = colorMode.fillcolor },
-                { value = i18n("widgets.governor.THR-OFF"), textcolor = colorMode.fillcritcolor }
+                { value = "@i18n(widgets.governor.DISARMED)@", textcolor = colorMode.fillcritcolor },
+                { value = "@i18n(widgets.governor.OFF)@", textcolor = colorMode.fillcritcolor },
+                { value = "@i18n(widgets.governor.IDLE)@", textcolor = "blue" },
+                { value = "@i18n(widgets.governor.SPOOLUP)@", textcolor = "blue" },
+                { value = "@i18n(widgets.governor.RECOVERY)@", textcolor = colorMode.fillwarncolor },
+                { value = "@i18n(widgets.governor.ACTIVE)@", textcolor = colorMode.fillcolor },
+                { value = "@i18n(widgets.governor.THR-OFF)@", textcolor = colorMode.fillcritcolor }
             }
         }
     }

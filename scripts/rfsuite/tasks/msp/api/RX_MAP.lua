@@ -22,14 +22,14 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- Define the MSP response data structures with simResponse  -- AECR1T23
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "aileron",     type = "U8", apiVersion = 12.06, simResponse = {0}, min = 0, max = 15, default = 0},
-    {field = "elevator",    type = "U8", apiVersion = 12.06, simResponse = {1}, min = 0, max = 15, default = 1},
-    {field = "rudder",      type = "U8", apiVersion = 12.06, simResponse = {2}, min = 0, max = 15, default = 2},
-    {field = "collective",  type = "U8", apiVersion = 12.06, simResponse = {3}, min = 0, max = 15, default = 3},
-    {field = "throttle",    type = "U8", apiVersion = 12.06, simResponse = {4}, min = 0, max = 15, default = 4},
-    {field = "aux1",        type = "U8", apiVersion = 12.06, simResponse = {5}, min = 0, max = 15, default = 5},
-    {field = "aux2",        type = "U8", apiVersion = 12.06, simResponse = {6}, min = 0, max = 15, default = 6},
-    {field = "aux3",        type = "U8", apiVersion = 12.06, simResponse = {7}, min = 0, max = 15, default = 7}
+    {field = "aileron",     type = "U8", apiVersion = 12.06, simResponse = {0}, min = 0, max = 15, default = 0, help = "@i18n(api.RX_MAP.help_aileron)@"},
+    {field = "elevator",    type = "U8", apiVersion = 12.06, simResponse = {1}, min = 0, max = 15, default = 1, help = "@i18n(api.RX_MAP.help_elevator)@"},
+    {field = "rudder",      type = "U8", apiVersion = 12.06, simResponse = {2}, min = 0, max = 15, default = 2, help = "@i18n(api.RX_MAP.help_rudder)@"},
+    {field = "collective",  type = "U8", apiVersion = 12.06, simResponse = {3}, min = 0, max = 15, default = 3, help = "@i18n(api.RX_MAP.help_collective)@"},
+    {field = "throttle",    type = "U8", apiVersion = 12.06, simResponse = {4}, min = 0, max = 15, default = 4, help = "@i18n(api.RX_MAP.help_throttle)@"},
+    {field = "aux1",        type = "U8", apiVersion = 12.06, simResponse = {5}, min = 0, max = 15, default = 5, help = "@i18n(api.RX_MAP.help_aux1)@"},
+    {field = "aux2",        type = "U8", apiVersion = 12.06, simResponse = {6}, min = 0, max = 15, default = 6, help = "@i18n(api.RX_MAP.help_aux2)@"},
+    {field = "aux3",        type = "U8", apiVersion = 12.06, simResponse = {7}, min = 0, max = 15, default = 7, help = "@i18n(api.RX_MAP.help_aux3)@"}
 }
 
 -- Process structure in one pass
@@ -52,59 +52,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

@@ -22,27 +22,63 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- define msp structure for reading and writing
 
+local MSP_API_STRUCTURE_READ_DATA
 
-local gov_modeTable ={[0] = rfsuite.i18n.get("api.GOVERNOR_CONFIG.tbl_govmode_off"), rfsuite.i18n.get("api.GOVERNOR_CONFIG.tbl_govmode_passthrough"), rfsuite.i18n.get("api.GOVERNOR_CONFIG.tbl_govmode_standard"), rfsuite.i18n.get("api.GOVERNOR_CONFIG.tbl_govmode_mode1"), rfsuite.i18n.get("api.GOVERNOR_CONFIG.tbl_govmode_mode2")}
+if rfsuite.utils.apiVersionCompare(">=", "12.09") then
 
-local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "gov_mode",                        type = "U8",  apiVersion = 12.06, simResponse = {3},    min = 0,  max = #gov_modeTable,   table = gov_modeTable},
-    {field = "gov_startup_time",                type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0,  max = 600, unit = "s", default = 200, decimals = 1, scale = 10},
-    {field = "gov_spoolup_time",                type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0,  max = 600, unit = "s", default = 100, decimals = 1, scale = 10},
-    {field = "gov_tracking_time",               type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 10,  decimals = 1, scale = 10},
-    {field = "gov_recovery_time",               type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 21,  decimals = 1, scale = 10},
-    {field = "gov_zero_throttle_timeout",       type = "U16", apiVersion = 12.06, simResponse = {30, 0}},
-    {field = "gov_lost_headspeed_timeout",      type = "U16", apiVersion = 12.06, simResponse = {10, 0}},
-    {field = "gov_autorotation_timeout",        type = "U16", apiVersion = 12.06, simResponse = {0, 0}},
-    {field = "gov_autorotation_bailout_time",   type = "U16", apiVersion = 12.06, simResponse = {0, 0}},
-    {field = "gov_autorotation_min_entry_time", type = "U16", apiVersion = 12.06, simResponse = {50, 0}},
-    {field = "gov_handover_throttle",           type = "U8",  apiVersion = 12.06, simResponse = {10},   min = 10, max = 50,  unit = "%", default = 20},
-    {field = "gov_pwr_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {5}},
-    {field = "gov_rpm_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {10}},
-    {field = "gov_tta_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {0}},
-    {field = "gov_ff_filter",                   type = "U8",  apiVersion = 12.06, simResponse = {10}},
-    {field = "gov_spoolup_min_throttle",        type = "U8",  apiVersion = 12.08, simResponse = {5},    min = 0,  max = 50,  unit = "%", default = 0},
-}
+    local gov_modeTable ={[0] = "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_off)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_external)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_electric)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_nitro)@"}
+    local throttleTypeTable ={[0] = "@i18n(api.GOVERNOR_CONFIG.tbl_throttle_type_normal)@", "@i18n(api.GOVERNOR_CONFIG.tbl_throttle_type_off_on)@","@i18n(api.GOVERNOR_CONFIG.tbl_throttle_type_off_idle_on)@","@i18n(api.GOVERNOR_CONFIG.tbl_throttle_type_off_idle_auto_on)@"}
+
+    MSP_API_STRUCTURE_READ_DATA = {
+        {field = "gov_mode",                        type = "U8",  apiVersion = 12.09, simResponse = {2},    min = 0,  max = #gov_modeTable, table = gov_modeTable, help = "@i18n(api.GOVERNOR_CONFIG.gov_mode)@"},
+        {field = "gov_startup_time",                type = "U16", apiVersion = 12.09, simResponse = {200, 0}, min = 0,  max = 600, unit = "s", default = 200, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_startup_time)@"},
+        {field = "gov_spoolup_time",                type = "U16", apiVersion = 12.09, simResponse = {100, 0}, min = 0,  max = 600, unit = "s", default = 100, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_spoolup_time)@"},
+        {field = "gov_tracking_time",               type = "U16", apiVersion = 12.09, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 10,  decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_tracking_time)@"},
+        {field = "gov_recovery_time",               type = "U16", apiVersion = 12.09, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 21,  decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_recovery_time)@"},
+        {field = "gov_throttle_hold_timeout",       type = "U16", apiVersion = 12.09, simResponse = {50, 0},  min = 0,  max = 250, unit = "s", default = 5,  decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_throttle_hold_timeout)@"},
+        {field = "gov_lost_headspeed_timeout",      type = "U16", apiVersion = 12.09, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_lost_headspeed_timeout)@"},   -- padding in 12.09
+        {field = "gov_autorotation_timeout",        type = "U16", apiVersion = 12.09, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_timeout)@"},   -- padding in 12.09
+        {field = "gov_autorotation_bailout_time",   type = "U16", apiVersion = 12.09, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_bailout_time)@"},   -- padding in 12.09
+        {field = "gov_autorotation_min_entry_time", type = "U16", apiVersion = 12.09, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_min_entry_time)@"},   -- padding in 12.09
+        {field = "gov_handover_throttle",           type = "U8",  apiVersion = 12.09, simResponse = {20},   min = 0, max = 50,  unit = "%", default = 20, help = "@i18n(api.GOVERNOR_CONFIG.gov_handover_throttle)@"},
+        {field = "gov_pwr_filter",                  type = "U8",  apiVersion = 12.09, simResponse = {20}, unit = "Hz", min = 0, max = 250, default = 20, help = "@i18n(api.GOVERNOR_CONFIG.gov_pwr_filter)@"},
+        {field = "gov_rpm_filter",                  type = "U8",  apiVersion = 12.09, simResponse = {20}, unit = "Hz", min = 0, max = 250, default = 20, help = "@i18n(api.GOVERNOR_CONFIG.gov_rpm_filter)@"},
+        {field = "gov_tta_filter",                  type = "U8",  apiVersion = 12.09, simResponse = {0}, unit = "Hz", min = 0, max = 250, default = 20, help = "@i18n(api.GOVERNOR_CONFIG.gov_tta_filter)@"},
+        {field = "gov_ff_filter",                   type = "U8",  apiVersion = 12.09, simResponse = {10}, unit = "Hz", min = 0, max = 25, default = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_ff_filter)@"},
+        {field = "gov_spoolup_min_throttle",        type = "U8",  apiVersion = 12.09, simResponse = {0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_spoolup_min_throttle)@"},      -- padding in 12.09
+        {field = "gov_d_filter",                    type = "U8",  apiVersion = 12.09, simResponse = {50}, unit = "Hz", min = 0, max = 250, default = 50, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_d_filter)@"},
+        {field = "gov_spooldown_time",              type = "U16", apiVersion = 12.09, simResponse = {30, 0}, min = 0,  max = 600, unit = "s", default = 100, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_spooldown_time)@"},
+        {field = "gov_throttle_type",               type = "U8",  apiVersion = 12.09, simResponse = {0}, min = 0, max = #throttleTypeTable, table = throttleTypeTable, help = "@i18n(api.GOVERNOR_CONFIG.gov_throttle_type)@"},
+        {field = "gov_idle_collective",             type = "S8",  apiVersion = 12.09, simResponse = {161}, unit = "%", min = -100, max = 100, default = -95, help = "@i18n(api.GOVERNOR_CONFIG.gov_idle_collective)@"},
+        {field = "gov_wot_collective",              type = "S8",  apiVersion = 12.09, simResponse = {246}, unit = "%", min = -100, max = 100, default = -10, help = "@i18n(api.GOVERNOR_CONFIG.gov_wot_collective)@"},
+        {field = "governor_idle_throttle",          type = "U8",    apiVersion = 12.09, simResponse = {10},     min = 0,   max = 100,   default = 0,  unit = "%", help = "@i18n(api.GOVERNOR_CONFIG.governor_idle_throttle)@"},
+        {field = "governor_auto_throttle",          type = "U8",    apiVersion = 12.09, simResponse = {10},     min = 0,   max = 100,   default = 0,  unit = "%", help = "@i18n(api.GOVERNOR_CONFIG.governor_auto_throttle)@"},
+
+    }
+
+else
+
+    local gov_modeTable ={[0] = "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_off)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_passthrough)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_standard)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_mode1)@", "@i18n(api.GOVERNOR_CONFIG.tbl_govmode_mode2)@"}
+
+    MSP_API_STRUCTURE_READ_DATA = {
+        {field = "gov_mode",                        type = "U8",  apiVersion = 12.06, simResponse = {3},    min = 0,  max = #gov_modeTable,   table = gov_modeTable, help = "@i18n(api.GOVERNOR_CONFIG.gov_mode)@"},
+        {field = "gov_startup_time",                type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0,  max = 600, unit = "s", default = 200, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_startup_time)@"},
+        {field = "gov_spoolup_time",                type = "U16", apiVersion = 12.06, simResponse = {100, 0}, min = 0,  max = 600, unit = "s", default = 100, decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_spoolup_time)@"},
+        {field = "gov_tracking_time",               type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 10,  decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_tracking_time)@"},
+        {field = "gov_recovery_time",               type = "U16", apiVersion = 12.06, simResponse = {20, 0},  min = 0,  max = 100, unit = "s", default = 21,  decimals = 1, scale = 10, help = "@i18n(api.GOVERNOR_CONFIG.gov_recovery_time)@"},
+        {field = "gov_zero_throttle_timeout",       type = "U16", apiVersion = 12.06, simResponse = {30, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_zero_throttle_timeout)@"}, 
+        {field = "gov_lost_headspeed_timeout",      type = "U16", apiVersion = 12.06, simResponse = {10, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_lost_headspeed_timeout)@"},
+        {field = "gov_autorotation_timeout",        type = "U16", apiVersion = 12.06, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_timeout)@"},
+        {field = "gov_autorotation_bailout_time",   type = "U16", apiVersion = 12.06, simResponse = {0, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_bailout_time)@"},
+        {field = "gov_autorotation_min_entry_time", type = "U16", apiVersion = 12.06, simResponse = {50, 0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_autorotation_min_entry_time)@"},
+        {field = "gov_handover_throttle",           type = "U8",  apiVersion = 12.06, simResponse = {10},   min = 10, max = 50,  unit = "%", default = 20, help = "@i18n(api.GOVERNOR_CONFIG.gov_handover_throttle)@"},
+        {field = "gov_pwr_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {5}, help = "@i18n(api.GOVERNOR_CONFIG.gov_pwr_filter)@"},
+        {field = "gov_rpm_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {10}, help = "@i18n(api.GOVERNOR_CONFIG.gov_rpm_filter)@"},
+        {field = "gov_tta_filter",                  type = "U8",  apiVersion = 12.06, simResponse = {0}, help = "@i18n(api.GOVERNOR_CONFIG.gov_tta_filter)@"},
+        {field = "gov_ff_filter",                   type = "U8",  apiVersion = 12.06, simResponse = {10}, help = "@i18n(api.GOVERNOR_CONFIG.gov_ff_filter)@"},
+        {field = "gov_spoolup_min_throttle",        type = "U8",  apiVersion = 12.08, simResponse = {5},    min = 0,  max = 50,  unit = "%", default = 0, help = "@i18n(api.GOVERNOR_CONFIG.gov_spoolup_min_throttle)@"},
+    }
+end
 
 -- Process structure in one pass
 local MSP_API_STRUCTURE_READ, MSP_MIN_BYTES, MSP_API_SIMULATOR_RESPONSE =
@@ -64,59 +100,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

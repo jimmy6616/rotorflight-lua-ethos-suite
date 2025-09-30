@@ -20,27 +20,27 @@ local MSP_API_CMD_READ = 92 -- Command identifier
 local MSP_API_CMD_WRITE = 93 -- Command identifier 
 local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write 
 
-local gyroFilterType = {[0]=rfsuite.i18n.get("api.FILTER_CONFIG.tbl_none"), [1]=rfsuite.i18n.get("api.FILTER_CONFIG.tbl_1st"), [2]=rfsuite.i18n.get("api.FILTER_CONFIG.tbl_2nd")}
-local rpmPreset = {rfsuite.i18n.get("api.FILTER_CONFIG.tbl_custom"),rfsuite.i18n.get("api.FILTER_CONFIG.tbl_low"), rfsuite.i18n.get("api.FILTER_CONFIG.tbl_medium"), rfsuite.i18n.get("api.FILTER_CONFIG.tbl_high")}
+local gyroFilterType = {[0]="@i18n(api.FILTER_CONFIG.tbl_none)@", [1]="@i18n(api.FILTER_CONFIG.tbl_1st)@", [2]="@i18n(api.FILTER_CONFIG.tbl_2nd)@"}
+local rpmPreset = {"@i18n(api.FILTER_CONFIG.tbl_custom)@","@i18n(api.FILTER_CONFIG.tbl_low)@", "@i18n(api.FILTER_CONFIG.tbl_medium)@", "@i18n(api.FILTER_CONFIG.tbl_high)@"}
 
 local MSP_API_STRUCTURE_READ_DATA = {
-    { field = "gyro_hardware_lpf",        type = "U8",  apiVersion = 12.07, simResponse = {0 }},          
-    { field = "gyro_lpf1_type",           type = "U8",  apiVersion = 12.07, simResponse = {1 }, min = 0, max = #gyroFilterType, table = gyroFilterType},          
-    { field = "gyro_lpf1_static_hz",      type = "U16", apiVersion = 12.07, simResponse = {100, 0}, min = 0, max = 4000, unit = "Hz", default = 100 },     
-    { field = "gyro_lpf2_type",           type = "U8",  apiVersion = 12.07, simResponse = {0 }, min = 0, max = #gyroFilterType, table = gyroFilterType},          
-    { field = "gyro_lpf2_static_hz",      type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" },       
-    { field = "gyro_soft_notch_hz_1",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" },       
-    { field = "gyro_soft_notch_cutoff_1", type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" },       
-    { field = "gyro_soft_notch_hz_2",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" },       
-    { field = "gyro_soft_notch_cutoff_2", type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" },       
-    { field = "gyro_lpf1_dyn_min_hz",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 1000, unit = "Hz" },       
-    { field = "gyro_lpf1_dyn_max_hz",     type = "U16", apiVersion = 12.07, simResponse = {25, 0}, min = 0, max = 1000, unit = "Hz" },     
-    { field = "dyn_notch_count",          type = "U8",  apiVersion = 12.07, simResponse = {0 }, min = 0, max = 8},          
-    { field = "dyn_notch_q",              type = "U8",  apiVersion = 12.07, simResponse = {100}, min = 0, max = 100, decimals=1, scale = 10},       
-    { field = "dyn_notch_min_hz",         type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 10, max = 200, unit="Hz"},       
-    { field = "dyn_notch_max_hz",         type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 100, max = 500, unit="Hz"},
-    { field = "rpm_preset",               type = "U8",  apiVersion = 12.08, simResponse = {1 }, table = rpmPreset, tableIdxInc = -1}, 
-    { field = "rpm_min_hz",               type = "U8",  apiVersion = 12.08, simResponse = {20}, min = 1, max = 100, unit = "Hz" },            
+    { field = "gyro_hardware_lpf",        type = "U8",  apiVersion = 12.07, simResponse = {0 }, help = "@i18n(api.FILTER_CONFIG.gyro_hardware_lpf)@"},          
+    { field = "gyro_lpf1_type",           type = "U8",  apiVersion = 12.07, simResponse = {1 }, min = 0, max = #gyroFilterType, table = gyroFilterType, help = "@i18n(api.FILTER_CONFIG.gyro_lpf1_type)@"},          
+    { field = "gyro_lpf1_static_hz",      type = "U16", apiVersion = 12.07, simResponse = {100, 0}, min = 0, max = 4000, unit = "Hz", default = 100 , help = "@i18n(api.FILTER_CONFIG.gyro_lpf1_static_hz)@"},     
+    { field = "gyro_lpf2_type",           type = "U8",  apiVersion = 12.07, simResponse = {0 }, min = 0, max = #gyroFilterType, table = gyroFilterType, help = "@i18n(api.FILTER_CONFIG.gyro_lpf2_type)@"},          
+    { field = "gyro_lpf2_static_hz",      type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_lpf2_static_hz)@"},       
+    { field = "gyro_soft_notch_hz_1",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_soft_notch_hz_1)@"},       
+    { field = "gyro_soft_notch_cutoff_1", type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_soft_notch_cutoff_1)@"},       
+    { field = "gyro_soft_notch_hz_2",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_soft_notch_hz_2)@"},       
+    { field = "gyro_soft_notch_cutoff_2", type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 4000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_soft_notch_cutoff_2)@"},       
+    { field = "gyro_lpf1_dyn_min_hz",     type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 0, max = 1000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_lpf1_dyn_min_hz)@"},       
+    { field = "gyro_lpf1_dyn_max_hz",     type = "U16", apiVersion = 12.07, simResponse = {25, 0}, min = 0, max = 1000, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.gyro_lpf1_dyn_max_hz)@"},     
+    { field = "dyn_notch_count",          type = "U8",  apiVersion = 12.07, simResponse = {0 }, min = 0, max = 8, help = "@i18n(api.FILTER_CONFIG.dyn_notch_count)@"},          
+    { field = "dyn_notch_q",              type = "U8",  apiVersion = 12.07, simResponse = {100}, min = 0, max = 100, decimals=1, scale = 10, help = "@i18n(api.FILTER_CONFIG.dyn_notch_q)@"},       
+    { field = "dyn_notch_min_hz",         type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 10, max = 200, unit="Hz", help = "@i18n(api.FILTER_CONFIG.dyn_notch_min_hz)@"},       
+    { field = "dyn_notch_max_hz",         type = "U16", apiVersion = 12.07, simResponse = {0, 0}, min = 100, max = 500, unit="Hz", help = "@i18n(api.FILTER_CONFIG.dyn_notch_max_hz)@"},
+    { field = "rpm_preset",               type = "U8",  apiVersion = 12.08, simResponse = {1 }, table = rpmPreset, tableIdxInc = -1, help = "@i18n(api.FILTER_CONFIG.rpm_preset)@"}, 
+    { field = "rpm_min_hz",               type = "U8",  apiVersion = 12.08, simResponse = {20}, min = 1, max = 100, unit = "Hz" , help = "@i18n(api.FILTER_CONFIG.rpm_min_hz)@"},
 }
 
 
@@ -66,59 +66,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

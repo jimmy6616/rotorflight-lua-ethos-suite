@@ -28,11 +28,14 @@ local loadedSensorModule = nil
 local delayDuration = 2  -- seconds
 local delayStartTime = nil
 local delayPending = false
+local schedulerTick = 0
 
 local msp = assert(rfsuite.compiler.loadfile("tasks/sensors/msp.lua"))(config)
 local smart = assert(rfsuite.compiler.loadfile("tasks/sensors/smart.lua"))(config)
 local log = rfsuite.utils.log
 local tasks = rfsuite.tasks
+
+
 
 --[[
     loadSensorModule - Loads the appropriate sensor module based on the current protocol and preferences.
@@ -63,7 +66,7 @@ local function loadSensorModule()
             loadedSensorModule = {name = "elrs", module = assert(rfsuite.compiler.loadfile("tasks/sensors/elrs.lua"))(config)}
         end
     elseif protocol == "sport" then
-        if rfsuite.utils.round(rfsuite.session.apiVersion,2) >= 12.08 then
+        if rfsuite.utils.apiVersionCompare(">=", "12.08") then
             if not loadedSensorModule or loadedSensorModule.name ~= "frsky" then
                 --log("Loading FrSky sensor module","info")
                 loadedSensorModule = {name = "frsky", module = assert(rfsuite.compiler.loadfile("tasks/sensors/frsky.lua"))(config)}
@@ -81,10 +84,18 @@ end
 
 function sensors.wakeup()
 
+    -- Yield if busy doing onConnect
+    if rfsuite.tasks and rfsuite.tasks.onconnect and rfsuite.tasks.onconnect.active and rfsuite.tasks.onconnect.active() then
+        return
+    end    
+
+    schedulerTick = schedulerTick + 1
+
     if rfsuite.session.resetSensors and not delayPending then
         delayStartTime = os.clock()
         delayPending = true
         rfsuite.session.resetSensors = false  -- Reset immediately
+
         log("Delaying sensor wakeup for " .. delayDuration .. " seconds","info")
         return  -- Exit early; wait starts now
     end
@@ -94,28 +105,30 @@ function sensors.wakeup()
             log("Delay complete; resuming sensor wakeup","info")
             delayPending = false
         else
-            local module = model.getModule(rfsuite.session.telemetrySensor:module())
-            if module ~= nil and module.muteSensorLost ~= nil then module:muteSensorLost(5.0) end
             return  -- Still waiting; do nothing
         end
     end
 
     loadSensorModule()
     if loadedSensorModule and loadedSensorModule.module.wakeup then
-        loadedSensorModule.module.wakeup()
 
-        if rfsuite.session and rfsuite.session.isConnected then
-            -- run msp sensors
-            if msp and msp.wakeup then
-                msp.wakeup()
+            local cycleFlip = schedulerTick % 2
+            if cycleFlip == 0 then
+                loadedSensorModule.module.wakeup()
+            else
+                if rfsuite.session and rfsuite.session.isConnected then
+                    -- run msp sensors
+                    if msp and msp.wakeup then msp.wakeup() end
+
+                    -- run smart sensors
+                    if smart and smart.wakeup then smart.wakeup() end
+        
+                end
             end
 
-            -- run smart sensors
-            if smart and smart.wakeup then
-                smart.wakeup()
-            end        
+        
 
-        end
+
 
     end
 
@@ -123,16 +136,20 @@ end
 
 function sensors.reset()
 
-    if loadedSensorModule and loadedSensorModule.module and loadedSensorModule.module.reset then
-        loadedSensorModule.module.reset()
-    end
-
-    if smart and smart.reset then
-        smart.reset()
-    end
-
+    if loadedSensorModule and loadedSensorModule.module and loadedSensorModule.module.reset then loadedSensorModule.module.reset() end
+    if smart and smart.reset then smart.reset() end
+    if msp and msp.reset then msp.reset() end
     loadedSensorModule = nil  -- Clear loaded sensor module
-    msp.reset()
+
 end
+
+
+-- On-demand sid accessor with cache; allows freeing and reload later
+function sensors.getSid()
+  if sensors.sid then return sensors.sid end
+  sensors.sid = assert(rfsuite.compiler.loadfile("tasks/sensors/sid.lua"))(config)
+  return sensors.sid
+end
+
 
 return sensors

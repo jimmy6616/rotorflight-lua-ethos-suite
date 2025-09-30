@@ -3,7 +3,7 @@ local ESC = assert(rfsuite.compiler.loadfile("app/modules/esc_tools/mfg/" .. fol
 local mspHeaderBytes = ESC.mspHeaderBytes
 local mspSignature = ESC.mspSignature
 local simulatorResponse = ESC.simulatorResponse
-local i18n = rfsuite.i18n.get
+
 local foundEsc = false
 local foundEscDone = false
 
@@ -15,12 +15,12 @@ local apidata = {
         labels = {
         },
         fields = {
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.throttle_protocol"),  mspapi = 1, apikey = "throttle_protocol",  type = 1,        apiversiongte = 12.08 },
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.telemetry_protocol"), mspapi = 1, apikey = "telemetry_protocol", type = 1,        apiversiongte = 12.08 },
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.led_color"),          mspapi = 1, apikey = "led_color_index",    type = 1,        apiversiongte = 12.08 },
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.motor_temp_sensor"),  mspapi = 1, apikey = "motor_temp_sensor",  type = 1,        apiversiongte = 12.08 },
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.motor_temp"),         mspapi = 1, apikey = "motor_temp",         apiversiongte = 12.08 },
-            { t = i18n("app.modules.esc_tools.mfg.flrtr.battery_capacity"),   mspapi = 1, apikey = "battery_capacity",   apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.throttle_protocol)@",  mspapi = 1, apikey = "throttle_protocol",  type = 1,        apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.telemetry_protocol)@", mspapi = 1, apikey = "telemetry_protocol", type = 1,        apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.led_color)@",          mspapi = 1, apikey = "led_color_index",    type = 1,        apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.motor_temp_sensor)@",  mspapi = 1, apikey = "motor_temp_sensor",  type = 1,        apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.motor_temp)@",         mspapi = 1, apikey = "motor_temp",         apiversiongte = 12.08 },
+            { t = "@i18n(app.modules.esc_tools.mfg.flrtr.battery_capacity)@",   mspapi = 1, apikey = "battery_capacity",   apiversiongte = 12.08 },
         }
     }
 }
@@ -30,16 +30,20 @@ if rfsuite.session.escDetails and rfsuite.session.escDetails.model then
     -- FLYROTOR 280A
     -- FLYROTOR 150A
 
+    local TEST_150A = false
+
     -- note.  if you change the order of items in mspapi above - this will need to be updated
-    if string.find(rfsuite.session.escDetails.model, "FLYROTOR 150A") then
+    if string.find(rfsuite.session.escDetails.model, "FLYROTOR 150A") or TEST_150A == true then
         -- this works because battery capacity is last item in list.
         -- we just keep popping off the first item until we get to the battery capacity
-        table.remove(mspapi.formdata.fields, 1)  -- throttle protocol
-        table.remove(mspapi.formdata.fields, 1)  -- telemetry protocol
-        table.remove(mspapi.formdata.fields, 1)  -- led color
-        table.remove(mspapi.formdata.fields, 1)  -- motor temp sensor
-        table.remove(mspapi.formdata.fields, 1)  -- motor temp
-    end    
+        if apidata and apidata.formdata and apidata.formdata.fields then
+            table.remove(apidata.formdata.fields, 1)  -- throttle protocol
+            table.remove(apidata.formdata.fields, 1)  -- telemetry protocol
+            table.remove(apidata.formdata.fields, 1)  -- led color
+            table.remove(apidata.formdata.fields, 1)  -- motor temp sensor
+            table.remove(apidata.formdata.fields, 1)  -- motor temp
+        end
+    end
 
 end
 
@@ -71,7 +75,7 @@ return {
     navButtons = { menu = true, save = true, reload = true, tool = false, help = false },
     onNavMenu = onNavMenu,
     event = event,
-    pageTitle = i18n("app.modules.esc_tools.name") .. " / " .. i18n("app.modules.esc_tools.mfg.flrtr.name") .. " / " .. i18n("app.modules.esc_tools.mfg.flrtr.other"),
+    pageTitle = "@i18n(app.modules.esc_tools.name)@" .. " / " .. "@i18n(app.modules.esc_tools.mfg.flrtr.name)@" .. " / " .. "@i18n(app.modules.esc_tools.mfg.flrtr.other)@",
     headerLine = rfsuite.escHeaderLineText,
     progressCounter = 0.5,
 }

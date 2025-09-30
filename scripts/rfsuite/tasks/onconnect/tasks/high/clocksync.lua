@@ -23,7 +23,10 @@ function clocksync.wakeup()
     -- quick exit if no apiVersion
     if rfsuite.session.apiVersion == nil then return end    
 
+    if rfsuite.session.mspBusy then return end
+
     if rfsuite.session.clockSet == nil then
+
         local API = rfsuite.tasks.msp.api.load("RTC", 1)
         API.setCompleteHandler(function(self, buf)
             rfsuite.session.clockSet = true

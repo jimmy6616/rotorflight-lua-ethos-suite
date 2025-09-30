@@ -31,8 +31,9 @@ msp.onConnectChecksInit = true
 
 local protocol = assert(rfsuite.compiler.loadfile("tasks/msp/protocols.lua"))()
 
+local telemetryTypeChanged = false
 
-msp.mspQueue = mspQueue
+msp.mspQueue = nil
 
 -- set active protocol to use
 msp.protocol = protocol.getProtocol()
@@ -50,6 +51,10 @@ msp.protocol.mspPoll = transport.mspPoll
 
 msp.mspQueue = assert(rfsuite.compiler.loadfile("tasks/msp/mspQueue.lua"))()
 msp.mspQueue.maxRetries = msp.protocol.maxRetries
+msp.mspQueue.loopInterval = 0.01   -- process every 10ms (throttles CPU)
+msp.mspQueue.copyOnAdd    = false  -- keep RAM/GC low (set true for strict immutability)
+msp.mspQueue.timeout      = 2.0    -- per-message timeout (override if you want)
+
 msp.mspHelper = assert(rfsuite.compiler.loadfile("tasks/msp/mspHelper.lua"))()
 msp.api = assert(rfsuite.compiler.loadfile("tasks/msp/api.lua"))()
 msp.common = assert(rfsuite.compiler.loadfile("tasks/msp/common.lua"))()
@@ -60,7 +65,10 @@ local delayPending = false
 
 function msp.wakeup()
 
-    if rfsuite.session.telemetrySensor == nil then return end
+    if rfsuite.session.telemetrySensor == nil then 
+        --rfsuite.utils.log("No telemetry sensor configured", "info")
+        return 
+    end
 
     if not msp.sensor then
         msp.sensor = sport.getSensor({primId = 0x32})
@@ -92,9 +100,7 @@ function msp.wakeup()
 
    msp.activeProtocol = rfsuite.session.telemetryType
 
-    if rfsuite.tasks.wasOn == true then rfsuite.session.telemetryTypeChanged = true end
-
-    if rfsuite.session.telemetryTypeChanged == true then
+    if telemetryTypeChanged == true then
 
         --rfsuite.utils.log("Switching protocol: " .. msp.activeProtocol)
 
@@ -109,6 +115,7 @@ function msp.wakeup()
 
         rfsuite.utils.session()
         msp.onConnectChecksInit = true
+        telemetryTypeChanged = false
     end
 
     if rfsuite.session.telemetrySensor ~= nil and rfsuite.session.telemetryState == false then
@@ -138,6 +145,10 @@ function msp.wakeup()
         msp.mspQueue:clear()
     end
 
+end
+
+function msp.setTelemetryTypeChanged()
+    telemetryTypeChanged = true
 end
 
 function msp.reset()

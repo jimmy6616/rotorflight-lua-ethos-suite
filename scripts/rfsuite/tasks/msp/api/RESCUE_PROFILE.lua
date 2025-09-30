@@ -22,24 +22,24 @@ local MSP_REBUILD_ON_WRITE = false -- Rebuild the payload on write
 
 -- Define the MSP response data structures
 local MSP_API_STRUCTURE_READ_DATA = {
-    {field = "rescue_mode",               type = "U8",  apiVersion = 12.06, simResponse = {1},   min = 0, max = 1,   default = 0,   table = {[0] = rfsuite.i18n.get("api.RESCUE_PROFILE.tbl_off"), rfsuite.i18n.get("api.RESCUE_PROFILE.tbl_on")}},
-    {field = "rescue_flip_mode",          type = "U8",  apiVersion = 12.06, simResponse = {0},   min = 0, max = 1,   default = 0,   table = {[0] = rfsuite.i18n.get("api.RESCUE_PROFILE.tbl_noflip"), rfsuite.i18n.get("api.RESCUE_PROFILE.tbl_flip")}},
-    {field = "rescue_flip_gain",          type = "U8",  apiVersion = 12.06, simResponse = {200}, min = 5, max = 250, default = 200},
-    {field = "rescue_level_gain",         type = "U8",  apiVersion = 12.06, simResponse = {100}, min = 5, max = 250, default = 100},
-    {field = "rescue_pull_up_time",       type = "U8",  apiVersion = 12.06, simResponse = {5},   min = 0, max = 250, default = 0.3,  unit = "s", decimals = 1, scale = 10},
-    {field = "rescue_climb_time",         type = "U8",  apiVersion = 12.06, simResponse = {3},   min = 0, max = 250, default = 1, unit = "s", decimals = 1, scale = 10},
-    {field = "rescue_flip_time",          type = "U8",  apiVersion = 12.06, simResponse = {10},  min = 0, max = 250, default = 2, unit = "s", decimals = 1, scale = 10},
-    {field = "rescue_exit_time",          type = "U8",  apiVersion = 12.06, simResponse = {5},   min = 0, max = 250, default = 0.5,  unit = "s", decimals = 1, scale = 10},
-    {field = "rescue_pull_up_collective", type = "U16", apiVersion = 12.06, simResponse = {182, 3}, min = 0, max = 100, default = 65, unit = "%", scale = 10},
-    {field = "rescue_climb_collective",   type = "U16", apiVersion = 12.06, simResponse = {188, 2}, min = 0, max = 100, default = 45, unit = "%", scale = 10},
-    {field = "rescue_hover_collective",   type = "U16", apiVersion = 12.06, simResponse = {194, 1}, min = 0, max = 100, default = 35, unit = "%", scale = 10},
-    {field = "rescue_hover_altitude",     type = "U16", apiVersion = 12.06, simResponse = {244, 1}},
-    {field = "rescue_alt_p_gain",         type = "U16", apiVersion = 12.06, simResponse = {20, 0}},
-    {field = "rescue_alt_i_gain",         type = "U16", apiVersion = 12.06, simResponse = {20, 0}},
-    {field = "rescue_alt_d_gain",         type = "U16", apiVersion = 12.06, simResponse = {10, 0}},
-    {field = "rescue_max_collective",     type = "U16", apiVersion = 12.06, simResponse = {232, 3}},
-    {field = "rescue_max_setpoint_rate",  type = "U16", apiVersion = 12.06, simResponse = {44, 1}, min = 5, max = 1000, default = 300, unit = "°/s"},
-    {field = "rescue_max_setpoint_accel", type = "U16", apiVersion = 12.06, simResponse = {184, 11}, min = 0, max = 10000, default = 3000, unit = "°/s^2"}
+    {field = "rescue_mode",               type = "U8",  apiVersion = 12.06, simResponse = {1},   min = 0, max = 1,   default = 0,   table = {[0] = "@i18n(api.RESCUE_PROFILE.tbl_off)@", "@i18n(api.RESCUE_PROFILE.tbl_on)@"}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_mode)@"},
+    {field = "rescue_flip_mode",          type = "U8",  apiVersion = 12.06, simResponse = {0},   min = 0, max = 1,   default = 0,   table = {[0] = "@i18n(api.RESCUE_PROFILE.tbl_noflip)@", "@i18n(api.RESCUE_PROFILE.tbl_flip)@"}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_flip_mode)@"},
+    {field = "rescue_flip_gain",          type = "U8",  apiVersion = 12.06, simResponse = {200}, min = 5, max = 250, default = 200, help = "@i18n(api.RESCUE_PROFILE.help_rescue_flip_gain)@"},
+    {field = "rescue_level_gain",         type = "U8",  apiVersion = 12.06, simResponse = {100}, min = 5, max = 250, default = 100, help = "@i18n(api.RESCUE_PROFILE.help_rescue_level_gain)@"},
+    {field = "rescue_pull_up_time",       type = "U8",  apiVersion = 12.06, simResponse = {5},   min = 0, max = 250, default = 0.3,  unit = "s", decimals = 1, scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_pull_up_time)@"},
+    {field = "rescue_climb_time",         type = "U8",  apiVersion = 12.06, simResponse = {3},   min = 0, max = 250, default = 1, unit = "s", decimals = 1, scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_climb_time)@"},
+    {field = "rescue_flip_time",          type = "U8",  apiVersion = 12.06, simResponse = {10},  min = 0, max = 250, default = 2, unit = "s", decimals = 1, scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_flip_time)@"},
+    {field = "rescue_exit_time",          type = "U8",  apiVersion = 12.06, simResponse = {5},   min = 0, max = 250, default = 0.5,  unit = "s", decimals = 1, scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_exit_time)@"},
+    {field = "rescue_pull_up_collective", type = "U16", apiVersion = 12.06, simResponse = {182, 3}, min = 0, max = 100, default = 65, unit = "%", scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_pull_up_collective)@"},
+    {field = "rescue_climb_collective",   type = "U16", apiVersion = 12.06, simResponse = {188, 2}, min = 0, max = 100, default = 45, unit = "%", scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_climb_collective)@"},
+    {field = "rescue_hover_collective",   type = "U16", apiVersion = 12.06, simResponse = {194, 1}, min = 0, max = 100, default = 35, unit = "%", scale = 10, help = "@i18n(api.RESCUE_PROFILE.help_rescue_hover_collective)@"},
+    {field = "rescue_hover_altitude",     type = "U16", apiVersion = 12.06, simResponse = {244, 1}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_hover_altitude)@", min = 0, max = 500, default = 20, unit = "m"},
+    {field = "rescue_alt_p_gain",         type = "U16", apiVersion = 12.06, simResponse = {20, 0}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_alt_p_gain)@", min = 0, max = 1000, default = 20},
+    {field = "rescue_alt_i_gain",         type = "U16", apiVersion = 12.06, simResponse = {20, 0}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_alt_i_gain)@", min = 0, max = 1000, default = 20},
+    {field = "rescue_alt_d_gain",         type = "U16", apiVersion = 12.06, simResponse = {10, 0}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_alt_d_gain)@", min = 0, max = 1000, default = 10},
+    {field = "rescue_max_collective",     type = "U16", apiVersion = 12.06, simResponse = {232, 3}, help = "@i18n(api.RESCUE_PROFILE.help_rescue_max_collective)@", min = 0, max = 100, default = 90, unit = "%", scale = 10},
+    {field = "rescue_max_setpoint_rate",  type = "U16", apiVersion = 12.06, simResponse = {44, 1}, min = 5, max = 1000, default = 300, unit = "°/s", help = "@i18n(api.RESCUE_PROFILE.help_rescue_max_setpoint_rate)@"},
+    {field = "rescue_max_setpoint_accel", type = "U16", apiVersion = 12.06, simResponse = {184, 11}, min = 0, max = 10000, default = 3000, unit = "°/s^2", help = "@i18n(api.RESCUE_PROFILE.help_rescue_max_setpoint_accel)@"},
 }
 
 -- Process structure in one pass
@@ -62,59 +62,99 @@ local handlers = rfsuite.tasks.msp.api.createHandlers()
 local MSP_API_UUID
 local MSP_API_MSG_TIMEOUT
 
+-- Track write completion without closures
+local lastWriteUUID = nil
+-- weak keys/values so finished entries don't pin memory
+local writeDoneRegistry = setmetatable({}, { __mode = "kv" })
+
+
+local function processReplyStaticRead(self, buf)
+  rfsuite.tasks.msp.api.parseMSPData(buf, self.structure, nil, nil, function(result)
+    mspData = result
+    if #buf >= (self.minBytes or 0) then
+      local getComplete = self.getCompleteHandler
+      if getComplete then
+        local complete = getComplete()
+        if complete then complete(self, buf) end
+      end
+    end
+  end)
+end
+
+local function processReplyStaticWrite(self, buf)
+  mspWriteComplete = true
+  -- mark this UUID as completed (no module locals touched)
+  if self.uuid then writeDoneRegistry[self.uuid] = true end
+
+  local getComplete = self.getCompleteHandler
+  if getComplete then
+    local complete = getComplete()
+    if complete then complete(self, buf) end
+  end
+end
+
+local function errorHandlerStatic(self, buf)
+  local getError = self.getErrorHandler
+  if getError then
+    local err = getError()
+    if err then err(self, buf) end
+  end
+end
+
 -- Function to initiate MSP read operation
 local function read()
-    if MSP_API_CMD_READ == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
-        return
-    end
+  if MSP_API_CMD_READ == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_READ", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_READ,
-        processReply = function(self, buf)
-            local structure = MSP_API_STRUCTURE_READ
-            rfsuite.tasks.msp.api.parseMSPData(buf, structure, nil, nil, function(result)
-                mspData = result
-                if #buf >= MSP_MIN_BYTES then
-                    local completeHandler = handlers.getCompleteHandler()
-                    if completeHandler then completeHandler(self, buf) end
-                end
-            end)
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  local message = {
+    command           = MSP_API_CMD_READ,
+    structure         = MSP_API_STRUCTURE_READ,   -- add this
+    minBytes          = MSP_MIN_BYTES,            -- and this
+    processReply      = processReplyStaticRead,
+    errorHandler      = errorHandlerStatic,
+    simulatorResponse = MSP_API_SIMULATOR_RESPONSE,
+    uuid              = MSP_API_UUID,
+    timeout           = MSP_API_MSG_TIMEOUT,
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+    -- optional: place to stash parsed data if you want it here:
+    mspData           = nil,
+  }
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 local function write(suppliedPayload)
-    if MSP_API_CMD_WRITE == nil then
-        rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
-        return
-    end
+  if MSP_API_CMD_WRITE == nil then
+    rfsuite.utils.log("No value set for MSP_API_CMD_WRITE", "debug")
+    return
+  end
 
-    local message = {
-        command = MSP_API_CMD_WRITE,
-        payload = suppliedPayload or rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData,MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE),
-        processReply = function(self, buf)
-            local completeHandler = handlers.getCompleteHandler()
-            if completeHandler then completeHandler(self, buf) end
-            mspWriteComplete = true
-        end,
-        errorHandler = function(self, buf)
-            local errorHandler = handlers.getErrorHandler()
-            if errorHandler then errorHandler(self, buf) end
-        end,
-        simulatorResponse = {},
-        uuid = MSP_API_UUID,
-        timeout = MSP_API_MSG_TIMEOUT  
-    }
-    rfsuite.tasks.msp.mspQueue:add(message)
+  -- Build payload eagerly (no capture)
+  local payload = suppliedPayload or
+    rfsuite.tasks.msp.api.buildWritePayload(API_NAME, payloadData, MSP_API_STRUCTURE_WRITE, MSP_REBUILD_ON_WRITE)
+
+  -- Choose a UUID for this write; if you already set MSP_API_UUID elsewhere, we’ll reuse it
+  local uuid = MSP_API_UUID or rfsuite.utils and rfsuite.utils.uuid and rfsuite.utils.uuid() or tostring(os.clock())
+  lastWriteUUID = uuid  -- track the most recent write without a closure
+
+  local message = {
+    command            = MSP_API_CMD_WRITE,
+    payload            = payload,
+    processReply       = processReplyStaticWrite, -- static, no upvalues
+    errorHandler       = errorHandlerStatic,      -- static, no upvalues
+    simulatorResponse  = {},
+
+    uuid               = uuid,
+    timeout            = MSP_API_MSG_TIMEOUT,
+
+    -- provide handler getters so static callbacks can resolve at runtime
+    getCompleteHandler = handlers.getCompleteHandler,
+    getErrorHandler    = handlers.getErrorHandler,
+  }
+
+  rfsuite.tasks.msp.mspQueue:add(message)
 end
 
 -- Function to get the value of a specific field from MSP data

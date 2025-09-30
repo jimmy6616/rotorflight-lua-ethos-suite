@@ -2,7 +2,6 @@
 
  * Copyright (C) Rotorflight Project
  *
- *
  * License GPLv3: https://www.gnu.org/licenses/gpl-3.0.en.html
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,98 +14,117 @@
  * GNU General Public License for more details.
  
  * Note.  Some icons have been sourced from https://www.flaticon.com/
- * 
-
+ 
 ]] --
+
 local utils = {}
-local i18n = rfsuite.i18n.get
 
+local compiler = rfsuite.compiler 
 
-local arg = {...}
+local arg    = {...}
 local config = arg[1]
 
--- sets up the initial session var state.
--- function is called on startup of the script  and
--- whenever the tasks.lua detects the heli has been disconnected
+-- Sets up the initial session var state.
+-- Function is called on startup of the script and whenever tasks.lua detects the heli has been disconnected.
 function utils.session()
-    rfsuite.session = {}
-    rfsuite.session.tailMode = nil
-    rfsuite.session.swashMode = nil
-    rfsuite.session.activeProfile = nil
-    rfsuite.session.activeRateProfile = nil
-    rfsuite.session.activeProfileLast = nil
-    rfsuite.session.activeRateLast = nil
-    rfsuite.session.servoCount = nil
-    rfsuite.session.servoOverride = nil
-    rfsuite.session.clockSet = nil
-    rfsuite.session.apiVersion = nil
-    rfsuite.session.fcVersion = nil
-    rfsuite.session.rfVersion = nil
-    rfsuite.session.activeProfile = nil
-    rfsuite.session.activeRateProfile = nil
-    rfsuite.session.activeProfileLast = nil
-    rfsuite.session.activeRateLast = nil
-    rfsuite.session.servoCount = nil
-    rfsuite.session.resetMSP = nil
-    rfsuite.session.servoOverride = nil
-    rfsuite.session.clockSet = nil
-    rfsuite.session.tailMode = nil
-    rfsuite.session.swashMode = nil
-    rfsuite.session.rateProfile = nil
-    rfsuite.session.governorMode = nil
-    rfsuite.session.servoOverride = nil
-    rfsuite.session.ethosRunningVersion = nil
-    rfsuite.session.mspSignature = nil
-    rfsuite.session.telemetryState = nil
-    rfsuite.session.telemetryType = nil
-    rfsuite.session.telemetryTypeChanged = nil
-    rfsuite.session.telemetrySensor = nil
-    rfsuite.session.repairSensors = false
-    rfsuite.session.locale = system.getLocale()
-    rfsuite.session.lastMemoryUsage = nil
-    rfsuite.session.mcu_id = nil
-    rfsuite.session.isConnected = false
-    rfsuite.session.isConnectedHigh = false
-    rfsuite.session.isConnectedMedium = false
-    rfsuite.session.isConnectedLow = false
-    rfsuite.session.isArmed = false
-    rfsuite.session.bblSize = nil
-    rfsuite.session.bblUsed = nil
-    rfsuite.session.batteryConfig = nil
-    -- keep rfsuite.session.batteryConfig nil as it is used to determine if the battery config has been loaded
-    -- rfsuite.session.batteryConfig  will end up containing the following:
-        -- batteryCapacity = nil
-        -- batteryCellCount = nil
-        -- vbatwarningcellvoltage = nil
-        -- vbatmincellvoltage = nil
-        -- vbatmaxcellvoltage = nil
-        -- vbatfullcellvoltage = nil
-        -- lvcPercentage = nil
-        -- consumptionWarningPercentage = nil
-    rfsuite.session.modelPreferences = nil -- this is used to store the model preferences
-    rfsuite.session.modelPreferencesFile = nil -- this is used to store the model preferences file path
-    rfsuite.session.timer = {}
-    rfsuite.session.timer.start = nil -- this is used to store the start time of the timer
-    rfsuite.session.timer.live = nil -- this is used to store the live timer value while inflight
-    rfsuite.session.timer.lifetime = nil -- this is used to store the total flight time of a model and store it in the user ini file
-    rfsuite.session.timer.session = 0 -- this is used to track flight time for the session
-    rfsuite.session.flightCounted = false
-    rfsuite.session.onConnect = {} -- this is used to store the onConnect tasks that need to be run
-    rfsuite.session.onConnect.high = false
-    rfsuite.session.onConnect.low = false
-    rfsuite.session.onConnect.medium = false
-    rfsuite.session.rx = {}
-    rfsuite.session.rx.map = {}
-    rfsuite.session.rx.values = {} -- this is used to store the rx values for the rxmap task
+    rfsuite.session = {
+        -- Modes
+        tailMode            = nil,
+        swashMode           = nil,
+        rateProfile         = nil,
+        governorMode        = nil,
+
+        -- Profiles
+        activeProfile       = nil,
+        activeRateProfile   = nil,
+        activeProfileLast   = nil,
+        activeRateLast      = nil,
+
+        -- Servo
+        servoCount          = nil,
+        servoOverride       = nil,
+
+        -- Versions / IDs
+        apiVersion          = nil,
+        apiVersionInvalid   = nil,
+        fcVersion           = nil,
+        rfVersion           = nil,
+        ethosRunningVersion = nil,
+        mspSignature        = nil,
+        mcu_id              = nil,
+
+        -- Connection State
+        isConnected         = false,
+        isConnectedHigh     = false,
+        isConnectedMedium   = false,
+        isConnectedLow      = false,
+        isArmed             = false,
+
+        -- Telemetry
+        telemetryState       = nil,
+        telemetryType        = nil,
+        telemetryTypeChanged = nil,
+        telemetrySensor      = nil,
+        telemetryModule      = nil,
+        telemetryModelChanged = nil,
+        telemetryConfig       = nil,
+
+        -- MSP
+        mspBusy             = false,
+
+        -- Sensors / Repair
+        repairSensors       = false,
+
+        -- Battery Config (nil means not yet loaded)
+        batteryConfig       = nil,
+
+        -- Locale / System
+        locale              = system.getLocale(),
+        lastMemoryUsage     = nil,
+        bblSize             = nil,
+        bblUsed             = nil,
+
+        -- Timers
+        timer = {
+            start     = nil,
+            live      = nil,
+            lifetime  = nil,
+            session   = 0
+        },
+        flightCounted = false,
+
+        -- Connection hooks
+        onConnect = {
+            tasks  = {},
+            high   = false,
+            medium = false,
+            low    = false
+        },
+
+        -- RX mapping
+        rx = {
+            map    = {},
+            values = {}
+        },
+
+        -- Files / Preferences
+        modelPreferences     = nil,
+        modelPreferencesFile = nil,
+
+        -- Clock / Reset
+        clockSet   = nil,
+        resetMSP   = nil
+    }
+    --rfsuite.utils.log("Session initialized", "info")
 end
 
+
 --- Checks if the RX map is ready by verifying the presence of required channel mappings.
--- The function returns true if the `rfsuite.session.rxmap` table exists and at least one of the following fields is present:
+-- The function returns true if the `rfsuite.session.rx.map` table exists and at least one of the following fields is present:
 -- `collective`, `elevator`, `throttle`, or `rudder`.
 -- @return boolean True if the RX map is ready, false otherwise.
 function utils.rxmapReady()
-    -- Check if the RX map is ready
-    if rfsuite.session.rx and rfsuite.session.rx.map  and (rfsuite.session.rx.map.collective or rfsuite.session.rx.map.elevator or rfsuite.session.rx.map.throttle or rfsuite.session.rx.map.rudder) then
+    if rfsuite.session.rx and rfsuite.session.rx.map and (rfsuite.session.rx.map.collective or rfsuite.session.rx.map.elevator or rfsuite.session.rx.map.throttle or rfsuite.session.rx.map.rudder) then
         return true
     end
     return false
@@ -123,77 +141,101 @@ end
 
 --- Converts a version array into an indexed array of tables.
 -- Each element in the input table is paired with its zero-based index in a new table.
--- @param tbl Table containing version elements.
--- @return arr Array of tables, each containing the value and its zero-based index: {value, index}.
+-- @return arr Array of tables, each containing the value and its index: {value, index}.
 function utils.msp_version_array_to_indexed()
     local arr = {}
-    local tbl = rfsuite.config.supportedMspApiVersion or {"12.06", "12.07","12.08"} 
+    local tbl = rfsuite.config.supportedMspApiVersion or {"12.06", "12.07", "12.08"}
     for i, v in ipairs(tbl) do
-        arr[#arr+1] = {v, i}
+        arr[#arr+1] = { v, i }
     end
     return arr
 end
 
---- Converts arming disable flags into a human-readable string representation.
----
---- This function iterates through the bits of the provided `flags` integer and checks
---- which flags are set. For each set flag, it appends the corresponding localized
---- string to the result. If no flags are set, it returns a localized "OK" message.
----
---- @param flags number The bitfield representing arming disable flags.
---- @return string A comma-separated string of human-readable flag descriptions, or "OK" if no flags are set.
 function utils.armingDisableFlagsToString(flags)
-    if flags == nil then
-        return i18n("app.modules.status.ok"):upper()
+
+    local ARMING_DISABLE_FLAG_TAG = {
+    [0]  = "@i18n(app.modules.fblstatus.arming_disable_flag_0):upper()@",
+    [1]  = "@i18n(app.modules.fblstatus.arming_disable_flag_1):upper()@",
+    [2]  = "@i18n(app.modules.fblstatus.arming_disable_flag_2):upper()@",
+    [3]  = "@i18n(app.modules.fblstatus.arming_disable_flag_3):upper()@",
+    [4]  = "@i18n(app.modules.fblstatus.arming_disable_flag_4):upper()@",
+    [5]  = "@i18n(app.modules.fblstatus.arming_disable_flag_5):upper()@",
+    [6]  = "@i18n(app.modules.fblstatus.arming_disable_flag_6):upper()@",
+    [7]  = "@i18n(app.modules.fblstatus.arming_disable_flag_7):upper()@",
+    [8]  = "@i18n(app.modules.fblstatus.arming_disable_flag_8):upper()@",
+    [9]  = "@i18n(app.modules.fblstatus.arming_disable_flag_9):upper()@",
+    [10] = "@i18n(app.modules.fblstatus.arming_disable_flag_10):upper()@",
+    [11] = "@i18n(app.modules.fblstatus.arming_disable_flag_11):upper()@",
+    [12] = "@i18n(app.modules.fblstatus.arming_disable_flag_12):upper()@",
+    [13] = "@i18n(app.modules.fblstatus.arming_disable_flag_13):upper()@",
+    [14] = "@i18n(app.modules.fblstatus.arming_disable_flag_14):upper()@",
+    [15] = "@i18n(app.modules.fblstatus.arming_disable_flag_15):upper()@",
+    [16] = "@i18n(app.modules.fblstatus.arming_disable_flag_16):upper()@",
+    [17] = "@i18n(app.modules.fblstatus.arming_disable_flag_17):upper()@",
+    [18] = "@i18n(app.modules.fblstatus.arming_disable_flag_18):upper()@",
+    [19] = "@i18n(app.modules.fblstatus.arming_disable_flag_19):upper()@",
+    [20] = "@i18n(app.modules.fblstatus.arming_disable_flag_20):upper()@",
+    [21] = "@i18n(app.modules.fblstatus.arming_disable_flag_21):upper()@",
+    [22] = "@i18n(app.modules.fblstatus.arming_disable_flag_22):upper()@",
+    [23] = "@i18n(app.modules.fblstatus.arming_disable_flag_23):upper()@",
+    [24] = "@i18n(app.modules.fblstatus.arming_disable_flag_24):upper()@",
+    [25] = "@i18n(app.modules.fblstatus.arming_disable_flag_25):upper()@",
+    }
+
+
+    -- No flags: localized OK (already uppercase via tag transform)
+    if flags == nil or flags == 0 then
+        return "@i18n(app.modules.fblstatus.ok):upper()@"
     end
 
     local names = {}
     for i = 0, 25 do
         if (flags & (1 << i)) ~= 0 then
-            local key = "app.modules.status.arming_disable_flag_" .. i
-            local name = i18n(key)
+            local name = ARMING_DISABLE_FLAG_TAG[i]
             if name and name ~= "" then
-                table.insert(names, name)
+                names[#names+1] = name
             end
         end
     end
 
     if #names == 0 then
-        return i18n("app.modules.status.ok"):upper()
+        return "@i18n(app.modules.fblstatus.ok):upper()@"
     end
 
-    return table.concat(names, ", "):upper()
+    -- NOTE: We avoid forcing uppercase here to preserve non-ASCII locales.
+    -- If you really want uppercase, you can do:
+    --   return (table.concat(names, ", ")):upper()
+    return table.concat(names, ", ")
 end
 
--- get the governor text from the value
-function utils.getGovernorState(value)
 
+-- Get the governor text from the value
+function utils.getGovernorState(value)
     local returnvalue
 
     if not rfsuite.tasks.telemetry then
-        return i18n("widgets.governor.UNKNOWN")
+        return "@i18n(widgets.governor.UNKNOWN)@"
     end
 
     --[[
-    Checks if the provided value exists as a key in the 'map' table.
-    If the key exists, assigns the corresponding value from 'map' to 'returnvalue'.
-    If the key does not exist, assigns a localized "UNKNOWN" string to 'returnvalue' using 'i18n'.
-    ]]    
-    local map = {     
-        [0] =  i18n("widgets.governor.OFF"),
-        [1] =  i18n("widgets.governor.IDLE"),
-        [2] =  i18n("widgets.governor.SPOOLUP"),
-        [3] =  i18n("widgets.governor.RECOVERY"),
-        [4] =  i18n("widgets.governor.ACTIVE"),
-        [5] =  i18n("widgets.governor.THROFF"),
-        [6] =  i18n("widgets.governor.LOSTHS"),
-        [7] =  i18n("widgets.governor.AUTOROT"),
-        [8] =  i18n("widgets.governor.BAILOUT"),
-        [100] = i18n("widgets.governor.DISABLED"),
-        [101] = i18n("widgets.governor.DISARMED")
+        Checks if the provided value exists as a key in the 'map' table.
+        If the key exists, returns the mapped value; otherwise returns localized "UNKNOWN".
+    ]]
+    local map = {
+        [0]   = "@i18n(widgets.governor.OFF):upper()@",
+        [1]   = "@i18n(widgets.governor.IDLE):upper()@",
+        [2]   = "@i18n(widgets.governor.SPOOLUP):upper()@",
+        [3]   = "@i18n(widgets.governor.RECOVERY):upper()@",
+        [4]   = "@i18n(widgets.governor.ACTIVE):upper()@",
+        [5]   = "@i18n(widgets.governor.THROFF):upper()@",
+        [6]   = "@i18n(widgets.governor.LOSTHS):upper()@",
+        [7]   = "@i18n(widgets.governor.AUTOROT):upper()@",
+        [8]   = "@i18n(widgets.governor.BAILOUT):upper()@",
+        [100] = "@i18n(widgets.governor.DISABLED):upper()@",
+        [101] = "@i18n(widgets.governor.DISARMED):upper()@"
     }
 
-    if rfsuite.session and rfsuite.session.apiVersion and rfsuite.session.apiVersion > 12.07 then
+    if rfsuite.session and rfsuite.session.apiVersion and rfsuite.utils.apiVersionCompare(">", "12.07") then
         local armflags = rfsuite.tasks.telemetry.getSensor("armflags")
         if armflags == 0 or armflags == 2 then
             value = 101
@@ -203,32 +245,25 @@ function utils.getGovernorState(value)
     if map[value] then
         returnvalue = map[value]
     else
-        returnvalue = i18n("widgets.governor.UNKNOWN")
-    end    
+        returnvalue = "@i18n(widgets.governor.UNKNOWN):upper()@"
+    end
 
     --[[
-        Checks the value of the "armdisableflags" telemetry sensor. If the sensor value is available,
-        it is floored to the nearest integer and converted to a human-readable string using
-        utils.armingDisableFlagsToString(). If the resulting string is not "OK",
-        the function sets 'returnvalue' to this string, indicating a reason why arming is disabled.
-    --]]
+        If armdisableflags is present, prefer its human-readable explanation over governor text.
+    ]]
     local armdisableflags = rfsuite.tasks.telemetry.getSensor("armdisableflags")
     if armdisableflags ~= nil then
         armdisableflags = math.floor(armdisableflags)
-        local armstring = utils.armingDisableFlagsToString(armdisableflags )
+        local armstring = utils.armingDisableFlagsToString(armdisableflags)
         if armstring ~= "OK" then
-            returnvalue =  armstring
-        end   
-    end    
+            returnvalue = armstring
+        end
+    end
 
-    --- Returns the value stored in `returnvalue`.
-    -- @return The value of `returnvalue`.
     return returnvalue
 end
 
-
 function utils.createCacheFile(tbl, path, options)
-
     os.mkdir("cache")
 
     path = "cache/" .. path
@@ -269,74 +304,67 @@ function utils.createCacheFile(tbl, path, options)
     f:close()
 end
 
+-- Cache tables
+local directoryExistenceCache = {}
+local fileExistenceCache      = {}
 
-
-function utils.logRotorFlightBanner()
-    local version = rfsuite.version().version or "Unknown Version"
-
-    local banner = {
-        "===============================================",
-        "    ROTORFLIGHT RFSUITE - Version: " .. version,
-        "===============================================",
-        "   ______.........--=T=--.........______",
-        "      .             |:|",
-        " :-. //           /\"\"\"\"\"\"-.",
-        " ': '-._____..--\"\"(\"\"\"\"\"\")()`---.__",
-        "  /:   _..__   ''  \":\"\"\"\"'[] |\"\"`\\\\",
-        "  ': :'     `-.     _:._     '\"\"\"\" :",
-        "   ::          '--=:____:.___....-\"",
-        "                     O\"       O\"",
-        "===============================================",
-        "  Rotorflight is free software licensed under",
-        "  the GNU General Public License version 3.0",
-        "  https://www.gnu.org/licenses/gpl-3.0.en.html",
-        "                                              ",
-        " For more information, visit rotorflight.org",
-        "==============================================="
-    }
-
-    for _, line in ipairs(banner) do
-        rfsuite.utils.log(line, "info")
-    end
-end
-
-
-function utils.dir_exists(base, name)
+--- Check if a directory exists, with optional caching.
+-- @param base string: base path (defaults to "./")
+-- @param name string: directory name
+-- @param noCache boolean: bypass the cache if true
+-- @return boolean: true if exists, false otherwise
+function utils.dir_exists(base, name, noCache)
     base = base or "./"
-    rfsuite.utils.log("Checking if directory exists: " .. base .. name, "debug")
-    local list = system.listFiles(base)
-    if list == nil then return false end
-    for i = 1, #list do
-        if list[i] == name then
-            return true
+    if not name then return false end
+
+    local targetPath = base .. name
+
+    if not noCache and directoryExistenceCache[targetPath] then return true end
+
+    local exists = os.stat(targetPath)
+    if exists then
+        if not noCache then
+            directoryExistenceCache[targetPath] = true
         end
+        return true
     end
+
     return false
 end
 
-function utils.file_exists(name)
-    rfsuite.utils.log("Checking if file exists: " .. name, "debug")
-    local f = io.open(name, "r")
-    if f then
-        io.close(f)
+--- Check if a file exists, with optional caching.
+-- @param path string: file path
+-- @param noCache boolean: bypass the cache if true
+-- @return boolean: true if exists, false otherwise
+function utils.file_exists(path, noCache)
+    if not path then return false end
+
+    if not noCache and fileExistenceCache[path] then return true end
+
+    local stat = os.stat(path)
+    if stat then
+        if not noCache then
+            fileExistenceCache[path] = true
+        end
         return true
     end
+
     return false
 end
 
 function utils.playFile(pkg, file)
     -- Get and clean audio voice path
     local av = system.getAudioVoice():gsub("SD:", ""):gsub("RADIO:", ""):gsub("AUDIO:", ""):gsub("VOICE[1-4]:", ""):gsub("audio/", "")
-    
+
     -- Ensure av does not start with a slash
     if av:sub(1, 1) == "/" then
         av = av:sub(2)
     end
 
     -- Construct file paths
-    local wavUser   = "SCRIPTS:/rfsuite.user/audio/user/"      .. pkg .. "/" .. file
-    local wavLocale = "SCRIPTS:/rfsuite.user/audio/" .. av .. "/" .. pkg .. "/" .. file
-    local wavDefault= "SCRIPTS:/rfsuite/audio/en/default/"    .. pkg .. "/" .. file
+    local wavUser    = "SCRIPTS:/rfsuite.user/audio/user/" .. pkg .. "/" .. file
+    local wavLocale  = "SCRIPTS:/rfsuite.user/audio/" .. av .. "/" .. pkg .. "/" .. file
+    local wavDefault = "SCRIPTS:/rfsuite/audio/en/default/" .. pkg .. "/" .. file
 
     -- Determine which file to play: user → locale → default
     local path
@@ -351,19 +379,17 @@ function utils.playFile(pkg, file)
     system.playFile(path)
 end
 
-
 function utils.playFileCommon(file)
     system.playFile("audio/" .. file)
 end
 
-
--- Function to compare the current system version with a target version
+-- Compare the current system version with a target version
 function utils.ethosVersionAtLeast(targetVersion)
-    local env = system.getVersion()
-    local currentVersion = {env.major, env.minor, env.revision}
+    local env            = system.getVersion()
+    local currentVersion = { env.major, env.minor, env.revision }
 
     -- Fallback to default config if targetVersion is not provided
-    if targetVersion == nil then 
+    if targetVersion == nil then
         if rfsuite and rfsuite.config and rfsuite.config.ethosVersion then
             targetVersion = rfsuite.config.ethosVersion
         else
@@ -371,63 +397,58 @@ function utils.ethosVersionAtLeast(targetVersion)
             return false
         end
     elseif type(targetVersion) == "number" then
-        rfsuite.utils.log("WARNING: utils.ethosVersionAtLeast() called with a number instead of a table (" .. targetVersion .. ")",2)
-        return false    
+        rfsuite.utils.log("WARNING: utils.ethosVersionAtLeast() called with a number instead of a table (" .. targetVersion .. ")", 2)
+        return false
     end
 
     -- Ensure the targetVersion has three components (major, minor, revision)
     for i = 1, 3 do
-        targetVersion[i] = targetVersion[i] or 0  -- Default to 0 if not provided
+        targetVersion[i] = targetVersion[i] or 0
     end
 
     -- Compare major, minor, and revision explicitly
     for i = 1, 3 do
         if currentVersion[i] > targetVersion[i] then
-            return true  -- Current version is higher
+            return true
         elseif currentVersion[i] < targetVersion[i] then
-            return false -- Current version is lower
+            return false
         end
     end
 
-    return true  -- Versions are equal (>= condition met)
+    return true -- Versions are equal (>= condition met)
 end
 
-
 function utils.round(num, places)
-    if num == nil then 
-        return nil 
-    end
+    if num == nil then return nil end
 
     local places = places or 2
     if places == 0 then
-        return math.floor(num + 0.5)  -- return integer (no .0)
+        return math.floor(num + 0.5) -- integer (no .0)
     else
         local mult = 10^places
         return math.floor(num * mult + 0.5) / mult
     end
 end
 
-
 function utils.joinTableItems(tbl, delimiter)
     if not tbl or #tbl == 0 then return "" end
 
-    delimiter = delimiter or ""
-    local startIndex = tbl[0] and 0 or 1
+    delimiter  = delimiter or ""
+    local sIdx = tbl[0] and 0 or 1
 
     -- Pre-pad all fields once before joining
-    local paddedTable = {}
-    for i = startIndex, #tbl do
-        paddedTable[i] = tostring(tbl[i]) .. string.rep(" ", math.max(0, 3 - #tostring(tbl[i])))
+    local padded = {}
+    for i = sIdx, #tbl do
+        padded[i] = tostring(tbl[i]) .. string.rep(" ", math.max(0, 3 - #tostring(tbl[i])))
     end
 
     -- Join the padded table items
-    return table.concat(paddedTable, delimiter, startIndex, #tbl)
+    return table.concat(padded, delimiter, sIdx, #tbl)
 end
 
 --[[
     Logs a message with a specified log level.
-    
-    @param msg string: The message to log.
+    @param msg   string: The message to log.
     @param level string (optional): The log level (e.g., "debug", "info", "warn", "error"). Defaults to "debug".
 ]]
 function utils.log(msg, level)
@@ -436,14 +457,13 @@ function utils.log(msg, level)
     end
 end
 
--- Function to print a table to the debug console in a readable format.
--- @param node The table to be printed.
--- @param maxDepth (optional) The maximum depth to traverse the table. Default is 5.
--- @param currentDepth (optional) The current depth of traversal. Default is 0.
--- @return A string representation of the table.
--- print a table out to debug console
+-- Print a table to the debug console in a readable format.
+-- @param node         The table to be printed.
+-- @param maxDepth     (optional) Max depth to traverse; default 5.
+-- @param currentDepth (optional) Current depth; default 0.
+-- @return string      A string representation of the table.
 function utils.print_r(node, maxDepth, currentDepth)
-    maxDepth = maxDepth or 5  -- Reasonable depth limit to avoid runaway recursion
+    maxDepth     = maxDepth or 5
     currentDepth = currentDepth or 0
 
     if currentDepth > maxDepth then
@@ -455,11 +475,10 @@ function utils.print_r(node, maxDepth, currentDepth)
     end
 
     local result = {}
-
     table.insert(result, "{")
 
     for k, v in pairs(node) do
-        local key = type(k) == "string" and ('["' .. k .. '"]') or ("[" .. tostring(k) .. "]")
+        local key   = type(k) == "string" and ('["' .. k .. '"]') or ("[" .. tostring(k) .. "]")
         local value
 
         if type(v) == "table" then
@@ -475,32 +494,28 @@ function utils.print_r(node, maxDepth, currentDepth)
     end
 
     table.insert(result, "}")
-
-    return table.concat(result, " ")
+    print(table.concat(result, " "))
 end
-
 
 --[[
     Finds and loads modules from the specified directory.
 
-    This function scans the "app/modules/" directory for subdirectories containing an "init.lua" file.
-    It attempts to load each "init.lua" file as a Lua chunk and expects it to return a table with a "script" field.
-    If the "init.lua" file is successfully loaded and returns a valid configuration table, the module is added to the modules list.
+    Scans the "app/modules/" directory for subdirectories containing an "init.lua".
+    Loads each and expects it to return a table with a "script" field. Valid modules
+    are pushed into the returned list.
 
-    @return table A list of loaded module configurations. Each configuration is a table containing the module's details.
+    @return table A list of loaded module configurations.
 ]]
 function utils.findModules()
-    local modulesList = {}
-
-    local moduledir = "app/modules/"
+    local modulesList  = {}
+    local moduledir    = "app/modules/"
     local modules_path = moduledir
 
     for _, v in pairs(system.listFiles(modules_path)) do
-
         if v ~= ".." and v ~= "." and not v:match("%.%a+$") then
             local init_path = modules_path .. v .. '/init.lua'
 
-            local func, err = rfsuite.compiler.loadfile(init_path)
+            local func, err = compiler.loadfile(init_path)
             if not func then
                 rfsuite.utils.log("Failed to load module init " .. init_path .. ": " .. err, "info")
             else
@@ -515,8 +530,7 @@ function utils.findModules()
                     table.insert(modulesList, mconfig)
                 end
             end
-            
-        end    
+        end
     end
 
     return modulesList
@@ -525,48 +539,36 @@ end
 --[[
     Finds and loads widget configurations from the "widgets/" directory.
 
-    This function scans the "widgets/" directory for subdirectories containing an "init.lua" file.
-    It attempts to load each "init.lua" file as a Lua chunk and expects it to return a table with widget configuration.
-    The configuration table must contain a "key" field to be considered valid.
-    If valid, the configuration table is added to the widgets list with an additional "folder" field indicating the widget's directory.
+    Scans for subdirectories containing an "init.lua" and expects it to return a
+    configuration table with a required "key". Valid configs are returned with
+    an added "folder" field.
 
     @return table A list of valid widget configuration tables.
 ]]
 function utils.findWidgets()
-    local widgetsList = {}
-
-    local widgetdir = "widgets/"
+    local widgetsList  = {}
+    local widgetdir    = "widgets/"
     local widgets_path = widgetdir
 
     for _, v in pairs(system.listFiles(widgets_path)) do
-
         if v ~= ".." and v ~= "." and not v:match("%.%a+$") then
             local init_path = widgets_path .. v .. '/init.lua'
-            -- try loading directly
-            local func, err = rfsuite.compiler.loadfile(init_path)
+
+            local func, err = compiler.loadfile(init_path)
             if not func then
-                rfsuite.utils.log(
-                  "Failed to load widget init " .. init_path .. ": " .. err,
-                  "debug"
-                )
+                rfsuite.utils.log("Failed to load widget init " .. init_path .. ": " .. err, "debug")
             else
                 local ok, wconfig = pcall(func)
                 if not ok then
-                    rfsuite.utils.log(
-                      "Error executing widget init " .. init_path .. ": " .. wconfig,
-                      "debug"
-                    )
+                    rfsuite.utils.log("Error executing widget init " .. init_path .. ": " .. wconfig, "debug")
                 elseif type(wconfig) ~= "table" or not wconfig.key then
-                    rfsuite.utils.log(
-                      "Invalid configuration in " .. init_path,
-                      "debug"
-                    )
+                    rfsuite.utils.log("Invalid configuration in " .. init_path, "debug")
                 else
                     wconfig.folder = v
                     table.insert(widgetsList, wconfig)
                 end
-            end            
-        end    
+            end
+        end
     end
 
     return widgetsList
@@ -575,43 +577,23 @@ end
 --[[
     utils.loadImage(image1, image2, image3)
 
-    This function attempts to load an image from a list of provided image paths or Bitmap objects.
-    It checks for the existence of the image in multiple directories and supports both PNG and BMP formats.
+    Attempts to load an image from provided image paths or Bitmap objects.
+    Checks for the existence of the image in multiple directories and supports
+    both PNG and BMP formats.
+]]
 
-    Parameters:
-        image1 (string|Bitmap): The primary image path or Bitmap object to load.
-        image2 (string|Bitmap): The secondary image path or Bitmap object to load if the primary is not found.
-        image3 (string|Bitmap): The tertiary image path or Bitmap object to load if neither the primary nor secondary are found.
-
-    Returns:
-        Bitmap: The loaded Bitmap object if an image path is found and successfully loaded.
-        Bitmap: The first existing Bitmap object from the provided parameters if no image path is found.
-        nil: If no valid image path or Bitmap object is found.
-
-    Helper Functions:
-        find_image_in_directories(img):
-            Checks if the image file exists in different directories and returns the valid path if found.
-
-        resolve_image(image):
-            Resolves the image path by checking its existence and attempting to switch between PNG and BMP formats if necessary.
---]]
 -- caches for loadImage
 utils._imagePathCache   = {}
 utils._imageBitmapCache = {}
+
 function utils.loadImage(image1, image2, image3)
     -- Resolve & cache bitmaps to avoid repeated fs checks
     local function getCachedBitmap(key, tryPaths)
-        -- already loaded?
-        -- nothing to do if no key
-        if not key then
-            return nil
-        end
-        -- already loaded?
+        if not key then return nil end
         if utils._imageBitmapCache[key] then
             return utils._imageBitmapCache[key]
         end
 
-        -- find or reuse resolved path
         local path = utils._imagePathCache[key]
         if not path then
             for _, p in ipairs(tryPaths) do
@@ -629,45 +611,29 @@ function utils.loadImage(image1, image2, image3)
         return bmp
     end
 
-    -- build candidate paths for each image string
+    -- Build candidate paths for each image string
     local function candidates(img)
         if type(img) ~= "string" then return {} end
-        local out = { img, "BITMAPS:"..img, "SYSTEM:"..img }
+        local out = { img, "BITMAPS:" .. img, "SYSTEM:" .. img }
         if img:match("%.png$") then
-            -- direct array-style append instead of table.insert
-            out[#out+1] = img:gsub("%.png$",".bmp")
+            out[#out+1] = img:gsub("%.png$", ".bmp")
         elseif img:match("%.bmp$") then
-            out[#out+1] = img:gsub("%.bmp$",".png")
+            out[#out+1] = img:gsub("%.bmp$", ".png")
         end
         return out
     end
 
-    -- try in order
+    -- Try in order
     return getCachedBitmap(image1, candidates(image1))
         or getCachedBitmap(image2, candidates(image2))
-        or getCachedBitmap(image3, candidates(image3)) 
+        or getCachedBitmap(image3, candidates(image3))
 end
 
 --[[
     Function: utils.simSensors
 
     Loads and executes a telemetry Lua script based on the provided ID.
-
-    Parameters:
-        id (string): The identifier for the telemetry script to load.
-
-    Returns:
-        number: The result of the executed telemetry script, or 0 if an error occurs.
-
-    Description:
-        This function attempts to load a telemetry Lua script from two possible paths:
-        1. "LOGS:/rfsuite/sensors/<id>.lua"
-        2. "lib/sim/sensors/<id>.lua"
-        
-        It first checks if the file exists at the local path. If not, it checks the fallback path.
-        If the file is found, it attempts to load and execute the script. If any error occurs
-        during loading or execution, it prints an error message and returns 0.
---]]
+]]
 function utils.simSensors(id)
     os.mkdir("LOGS:")
     os.mkdir("LOGS:/rfsuite")
@@ -677,7 +643,6 @@ function utils.simSensors(id)
 
     local filepath = "sim/sensors/" .. id .. ".lua"
 
-    -- loadfile will fail gracefully if file doesn't exist or has errors
     local chunk, err = loadfile(filepath)
     if not chunk then
         print("Error loading telemetry file: " .. err)
@@ -693,91 +658,94 @@ function utils.simSensors(id)
     return result
 end
 
-
 --- Logs MSP (Multiwii Serial Protocol) commands if logging is enabled in the configuration.
--- @param cmd The MSP command to log.
+-- @param cmd     The MSP command to log.
 -- @param rwState The read/write state of the command.
--- @param buf The buffer containing the command data.
--- @param err Any error associated with the command.
--- @usage
--- utils.logMsp("MSP_STATUS", "read", {0x01, 0x02, 0x03}, nil)
+-- @param buf     The buffer containing the command data.
+-- @param err     Any error associated with the command.
 function utils.logMsp(cmd, rwState, buf, err)
     if rfsuite.preferences.developer.logmsp then
         local payload = rfsuite.utils.joinTableItems(buf, ", ")
-        rfsuite.utils.log(rwState .. " [" .. cmd .. "]" .. " {" .. payload .. "}", "info")
+        rfsuite.utils.log(rwState .. " [" .. cmd .. "]{" .. payload .. "}", "info")
         if err then
             rfsuite.utils.log("Error: " .. err, "info")
         end
     end
 end
 
-function utils.reportMemoryUsage(location)
-    if not rfsuite.preferences.developer.memstats then
+-- store measurements between start/end calls
+utils._memProfile = utils._memProfile or {}
+
+function utils.reportMemoryUsage(location, phase)
+    if not rfsuite.preferences.developer.memstats then return end
+    location = location or "Unknown"
+
+    local cpuInfo   = (rfsuite.performance and rfsuite.performance.cpuload) or 0
+    local ramFree   = (rfsuite.performance and rfsuite.performance.freeram) or 0
+    local ramUsed   = (rfsuite.performance and rfsuite.performance.usedram) or 0
+    local memInfo   = system.getMemoryUsage() or {}
+
+    local snapshot = {
+        cpu   = cpuInfo,
+        free  = ramFree,
+        used  = ramUsed,
+        main  = (memInfo.mainStackAvailable or 0) / 1024,
+        ram   = (memInfo.ramAvailable or 0) / 1024,
+        lua   = (memInfo.luaRamAvailable or 0) / 1024,
+        bmp   = (memInfo.luaBitmapsRamAvailable or 0) / 1024,
+        time  = os.clock()
+    }
+
+    -- if phase is given, handle profiling
+    if phase == "start" then
+        utils._memProfile[location] = snapshot
+        rfsuite.utils.log(string.format("[%s] Profiling started", location), "info")
+        return
+    elseif phase == "end" then
+        local startSnap = utils._memProfile[location]
+        if startSnap then
+            local dt = snapshot.time - startSnap.time
+            utils.log(string.format("[%s] Profiling ended (%.3fs)", location, dt), "info")
+            utils.log(string.format("[%s] CPU diff: %.0f -> %.0f", location, startSnap.cpu, snapshot.cpu), "info")
+            utils.log(string.format("[%s] RAM Used diff: %.0f -> %.0f kB", location, startSnap.used, snapshot.used), "info")
+            utils.log(string.format("[%s] Lua RAM diff: %.2f -> %.2f KB", location, startSnap.lua, snapshot.lua), "info")
+            -- …repeat for other stats if useful
+            utils._memProfile[location] = nil
+        else
+            utils.log(string.format("[%s] Profiling 'end' without a 'start'", location), "warn")
+        end
         return
     end
 
-    local TOTAL_LUA_MEMORY_KB = 2048 -- Total Lua memory in KB (2 MB)
-
-    -- Get current memory
-    local memInfo = system.getMemoryUsage()
-    local currentAvailableKB = math.max(0, memInfo.luaRamAvailable / 1024)
-    local currentUsedKB = TOTAL_LUA_MEMORY_KB - currentAvailableKB
-
-    -- Clamp usage to max
-    if currentUsedKB > TOTAL_LUA_MEMORY_KB then
-        currentUsedKB = TOTAL_LUA_MEMORY_KB
-    end
-
-    -- Retrieve last used value
-    local lastUsedKB
-    if rfsuite.session.lastMemoryUsage then
-        local lastAvailableKB = rfsuite.session.lastMemoryUsage / 1024
-        lastUsedKB = TOTAL_LUA_MEMORY_KB - lastAvailableKB
-    end
-
-    location = location or "Unknown"
-    local logMessage = ""
-    local WARN_THRESHOLD_KB = 950
-
-    -- Delta message
-    if lastUsedKB then
-        local diff = currentUsedKB - lastUsedKB
-        if math.abs(diff) < 0.01 then
-            logMessage = string.format("[%s] Memory usage unchanged (Still using: %.2f KB / %d KB)", location, currentUsedKB, TOTAL_LUA_MEMORY_KB)
-        elseif diff > 0 then
-            logMessage = string.format("[%s] Memory usage increased by %.2f KB (Now using: %.2f KB / %d KB)", location, diff, currentUsedKB, TOTAL_LUA_MEMORY_KB)
-        else
-            logMessage = string.format("[%s] Memory usage decreased by %.2f KB (Now using: %.2f KB / %d KB)", location, -diff, currentUsedKB, TOTAL_LUA_MEMORY_KB)
-        end
-    else
-        logMessage = string.format("[%s] Initial memory usage: %.2f KB / %d KB", location, currentUsedKB, TOTAL_LUA_MEMORY_KB)
-    end
-
-    rfsuite.utils.log(logMessage, "info")
-
-    -- Save current for next diff
-    rfsuite.session.lastMemoryUsage = memInfo.luaRamAvailable
+    -- default behavior: just log snapshot
+    rfsuite.utils.log(string.format("[%s] CPU Load: %d%%", location, rfsuite.utils.round(snapshot.cpu, 0)), "info")
+    rfsuite.utils.log(string.format("[%s] RAM Free: %d kB", location, rfsuite.utils.round(snapshot.free, 0)), "info")
+    rfsuite.utils.log(string.format("[%s] RAM Used: %d kB", location, rfsuite.utils.round(snapshot.used, 0)), "info")
+    rfsuite.utils.log(string.format("[%s] Main stack available: %.2f KB", location, snapshot.main), "info")
+    rfsuite.utils.log(string.format("[%s] System RAM available: %.2f KB", location, snapshot.ram), "info")
+    rfsuite.utils.log(string.format("[%s] Lua RAM available: %.2f KB", location, snapshot.lua), "info")
+    rfsuite.utils.log(string.format("[%s] Lua Bitmap RAM available: %.2f KB", location, snapshot.bmp), "info")
 end
-
 
 
 
 function utils.onReboot()
-    rfsuite.session.resetSensors = true
-    rfsuite.session.resetTelemetry = true
-    rfsuite.session.resetMSP = true
+    rfsuite.utils.log("utils.onReboot called", "info")
+    rfsuite.session.resetSensors    = true
+    rfsuite.session.resetTelemetry  = true
+    rfsuite.session.resetMSP        = true
     rfsuite.session.resetMSPSensors = true
 end
 
 --- Parses a version string into a table of numbers.
--- The function splits the input version string by numeric components and returns a table
--- where each element is a number from the version string. The table starts with 0 as the first element.
+-- Splits by numeric components and returns a table where each element is a number from the version string.
+-- The table starts with 0 as the first element.
 -- @param versionString string: The version string to parse (e.g., "1.2.3").
 -- @return table|nil: A table of numbers representing the version, or nil if the input is nil.
 function utils.splitVersionStringToNumbers(versionString)
     if not versionString then return nil end
 
-    local parts = {0} -- start with 0
+    local parts = { 0 } -- start with 0
     for num in versionString:gmatch("%d+") do
         table.insert(parts, tonumber(num))
     end
@@ -790,6 +758,70 @@ function utils.keys(tbl)
         table.insert(keys, k)
     end
     return keys
+end
+
+-- advanced compare function for version strings that should avoid issues
+-- with floating point roundings
+-- apiVersionCompare(op, req)
+-- op:  one of ">", "<", ">=", "<=", "==", "!=", "~="
+-- req: required version ("12.09", 12.09, or "12.9.1")
+function utils.apiVersionCompare(op, req)
+
+    local function parts(x)
+        local t = {}
+        for n in tostring(x):gmatch("(%d+)") do
+            t[#t+1] = tonumber(n)
+        end
+        return t
+    end
+
+    local a, b = parts(rfsuite.session.apiVersion or 12.06), parts(req)
+    if #a == 0 or #b == 0 then return false end
+
+    -- pad shorter list with zeros
+    local len = math.max(#a, #b)
+    local cmp = 0
+    for i = 1, len do
+        local ai = a[i] or 0
+        local bi = b[i] or 0
+        if ai ~= bi then
+            cmp = (ai > bi) and 1 or -1
+            break
+        end
+    end
+
+    if op == ">"  then return cmp == 1 end
+    if op == "<"  then return cmp == -1 end
+    if op == ">=" then return cmp >= 0 end
+    if op == "<=" then return cmp <= 0 end
+    if op == "==" then return cmp == 0 end
+    if op == "!=" or op == "~=" then return cmp ~= 0 end
+
+    return false -- unknown operator
+end
+
+function utils.muteSensorLostWarnings()
+    if rfsuite.session.telemetryModule then
+        local module = rfsuite.session.telemetryModule
+        if module and module.muteSensorLost then
+            module:muteSensorLost(2.0)
+        end
+    end
+end
+
+--[[
+    Checks whether a string exists within an array.
+
+    @param array (table) List of strings.
+    @param s (string)    String to find.
+
+    @return (boolean) True if found; otherwise false.
+]]
+function utils.stringInArray(array, s)
+    for i, value in ipairs(array) do
+        if value == s then return true end
+    end
+    return false
 end
 
 return utils

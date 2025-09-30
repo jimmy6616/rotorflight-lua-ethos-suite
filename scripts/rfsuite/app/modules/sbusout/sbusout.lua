@@ -6,7 +6,7 @@ local lastServoCountTime = os.clock()
 local enableWakeup = false
 local wakeupScheduler = os.clock()
 local validSerialConfig = false
-local i18n = rfsuite.i18n.get
+
 local function openPage(pidx, title, script)
 
 
@@ -36,10 +36,10 @@ local function openPage(pidx, title, script)
     local sc
     local panel
 
-    buttonW = 100
+    local buttonW = 100
     local x = windowWidth - buttonW - 10
 
-    rfsuite.app.ui.fieldHeader(i18n("app.modules.sbusout.title") .. "")
+    rfsuite.app.ui.fieldHeader("@i18n(app.modules.sbusout.title)@" .. "")
 
     local buttonW
     local buttonH
@@ -95,7 +95,7 @@ local function openPage(pidx, title, script)
         end
 
         rfsuite.app.formFields[pidx] = form.addButton(nil, {x = bx, y = y, w = buttonW, h = buttonH}, {
-            text = i18n("app.modules.sbusout.channel_prefix") .. "" .. tostring(pidx + 1),
+            text = "@i18n(app.modules.sbusout.channel_prefix)@" .. "" .. tostring(pidx + 1),
             icon = rfsuite.app.gfx_buttons["sbuschannel"][pidx],
             options = FONT_S,
             paint = function()
@@ -104,7 +104,7 @@ local function openPage(pidx, title, script)
                 rfsuite.preferences.menulastselected["sbuschannel"] = pidx
                 rfsuite.currentSbusServoIndex = pidx
                 rfsuite.app.ui.progressDisplay()
-                rfsuite.app.ui.openPage(pidx, i18n("app.modules.sbusout.channel_page") .. "" .. tostring(rfsuite.currentSbusServoIndex + 1), "sbusout/sbusout_tool.lua")
+                rfsuite.app.ui.openPage(pidx, "@i18n(app.modules.sbusout.channel_page)@" .. "" .. tostring(rfsuite.currentSbusServoIndex + 1), "sbusout/sbusout_tool.lua")
             end
         })
 
@@ -116,6 +116,7 @@ local function openPage(pidx, title, script)
     end
 
     rfsuite.app.triggers.closeProgressLoader = true
+    rfsuite.app.triggers.closeProgressLoaderNoisProcessed = true
 
     enableWakeup = true
     collectgarbage()
@@ -169,6 +170,7 @@ local function wakeup()
             rfsuite.app.formFields[pidx]:enable(true)
             if rfsuite.preferences.menulastselected["sbuschannel"] == rfsuite.currentSbusServoIndex then rfsuite.app.formFields[rfsuite.currentSbusServoIndex]:focus() end
         end
+        -- close the progressDisplay
     end
 
 end

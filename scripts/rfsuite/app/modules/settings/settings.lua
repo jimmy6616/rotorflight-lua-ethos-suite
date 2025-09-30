@@ -1,11 +1,11 @@
-local i18n = rfsuite.i18n.get
+
 
 local S_PAGES = {
-    {name = i18n("app.modules.settings.txt_general"), script = "general.lua", image = "general.png"},
-    {name = i18n("app.modules.settings.dashboard"), script = "dashboard.lua", image = "dashboard.png"},
-    {name = i18n("app.modules.settings.localizations"), script = "localizations.lua", image = "localizations.png"},
-    {name = i18n("app.modules.settings.audio"), script = "audio.lua", image = "audio.png"},
-    {name = i18n("app.modules.settings.txt_development"), script = "development.lua", image = "development.png"},
+    {name = "@i18n(app.modules.settings.txt_general)@", script = "general.lua", image = "general.png"},
+    {name = "@i18n(app.modules.settings.dashboard)@", script = "dashboard.lua", image = "dashboard.png"},
+    {name = "@i18n(app.modules.settings.localizations)@", script = "localizations.lua", image = "localizations.png"},
+    {name = "@i18n(app.modules.settings.audio)@", script = "audio.lua", image = "audio.png"},
+    {name = "@i18n(app.modules.settings.txt_development)@", script = "development.lua", image = "development.png"},
 }
 
 local function openPage(pidx, title, script)
@@ -30,7 +30,6 @@ local function openPage(pidx, title, script)
         end
     end
 
-    ESC = {}
 
     -- size of buttons
     if rfsuite.preferences.general.iconsize == nil or rfsuite.preferences.general.iconsize == "" then
@@ -49,7 +48,7 @@ local function openPage(pidx, title, script)
 
     form.addLine(title)
 
-    buttonW = 100
+    local buttonW = 100
     local x = windowWidth - buttonW - 10
 
     rfsuite.app.formNavigationFields['menu'] = form.addButton(line, {x = x, y = rfsuite.app.radio.linePaddingTop, w = buttonW, h = rfsuite.app.radio.navbuttonHeight}, {
@@ -62,8 +61,11 @@ local function openPage(pidx, title, script)
             rfsuite.app.lastIdx = nil
             rfsuite.session.lastPage = nil
 
-            if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then rfsuite.app.Page.onNavMenu(rfsuite.app.Page) end
-
+            if rfsuite.app.Page and rfsuite.app.Page.onNavMenu then 
+                    rfsuite.app.Page.onNavMenu(rfsuite.app.Page) 
+            else
+                rfsuite.app.ui.progressDisplay(nil,nil,true)
+            end
             rfsuite.app.ui.openMainMenu()
         end
     })
@@ -135,7 +137,7 @@ local function openPage(pidx, title, script)
             end,
             press = function()
                 rfsuite.preferences.menulastselected["settings"] = pidx
-                rfsuite.app.ui.progressDisplay()
+                rfsuite.app.ui.progressDisplay(nil,nil,true)
                 rfsuite.app.ui.openPage(pidx, pvalue.folder, "settings/tools/" .. pvalue.script)
             end
         })

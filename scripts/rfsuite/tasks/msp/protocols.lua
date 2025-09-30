@@ -41,7 +41,6 @@ local supportedProtocols = {
     sport = {
         mspTransport = "sp.lua",
         mspProtocol = "sport",
-        push = sportTelemetryPush,
         maxTxBufferSize = 6,
         maxRxBufferSize = 6,
         maxRetries = 10,
@@ -62,11 +61,14 @@ local supportedProtocols = {
 }
 
 --[[
-    Retrieves the communication protocol based on the availability of the "Rx RSSI1" source.
-    @return supportedProtocols.crsf if "Rx RSSI1" source is available, otherwise supportedProtocols.sport.
+    Retrieves the communication protocol based on the availability of the source.
 ]]
 function protocol.getProtocol()
-    if system.getSource("Rx RSSI1") ~= nil then return supportedProtocols.crsf end
+    if rfsuite.session and rfsuite.session.telemetryType then
+        if rfsuite.session.telemetryType == "crsf" then
+            return supportedProtocols.crsf
+        end
+    end
     return supportedProtocols.sport
 end
 

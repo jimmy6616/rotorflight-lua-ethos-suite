@@ -9,7 +9,7 @@ local triggerSave = false
 local saveCounter = 0
 local triggerSaveCounter = false
 local triggerMSPWrite = false
-local i18n = rfsuite.i18n.get
+
 local apidata = {
     api = {
         [1] = "STATUS",
@@ -18,8 +18,8 @@ local apidata = {
         labels = {
         },
         fields = {
-            {t = i18n("app.modules.profile_select.pid_profile"), type = 1, mspapi = 1, apikey="current_pid_profile_index"},
-            {t = i18n("app.modules.profile_select.rate_profile"),type = 1, mspapi = 1, apikey="current_control_rate_profile_index"}
+            {t = "@i18n(app.modules.profile_select.pid_profile)@", type = 1, mspapi = 1, apikey="current_pid_profile_index"},
+            {t = "@i18n(app.modules.profile_select.rate_profile)@",type = 1, mspapi = 1, apikey="current_control_rate_profile_index"}
         }
     }                 
 }
@@ -58,13 +58,13 @@ end
 local function onSaveMenu()
 
     local buttons = {{
-        label = i18n("app.btn_ok_long"),
+        label = "@i18n(app.btn_ok_long)@",
         action = function()
             triggerSave = true
             return true
         end
     }, {
-        label = i18n("app.modules.profile_select.cancel"),
+        label = "@i18n(app.modules.profile_select.cancel)@",
         action = function()
             triggerSave = false
             return true
@@ -73,8 +73,8 @@ local function onSaveMenu()
 
     form.openDialog({
         width = nil,
-        title = i18n("app.modules.profile_select.save_settings"),
-        message = i18n("app.modules.profile_select.save_prompt"),
+        title = "@i18n(app.modules.profile_select.save_settings)@",
+        message = "@i18n(app.modules.profile_select.save_prompt)@",
         buttons = buttons,
         wakeup = function()
         end,
@@ -98,18 +98,19 @@ local function wakeup()
     end
 
     -- step through the values
+    --[[
     if triggerSaveCounter == true then
         saveCounter = saveCounter + 10
-        rfsuite.app.ui.progressDisplaySaveValue(saveCounter, message)
+        rfsuite.app.dialogs.save:value(saveCounter)
         if saveCounter >= 100 then
             saveCounter = 0
             triggerSaveCounter = false
             rfsuite.app.dialogs.saveDisplay = false
-            rfsuite.app.ui.progressDisplaySaveClose()
+            rfsuite.app.dialogs.save:close()
             rfsuite.app.dialogs.progressDisplay = false
             rfsuite.app.triggers.isReady = true
         end
-    end
+    end]]
 
     if triggerMSPWrite == true then
         triggerMSPWrite = false

@@ -31,8 +31,8 @@ local voltageThreshold    = 0.15      -- Maximum allowed voltage variation withi
 local preStabiliseDelay   = 1.5       -- Minimum seconds to wait after configuration or telemetry update before checking for stabilisation.
 
 local telemetry                       -- Reference to the telemetry task, used to access sensor data.
-local lastMode = rfsuite.flightmode.current
-local currentMode = rfsuite.flightmode.current
+local lastMode = rfsuite.flightmode.current or "preflight" -- Last flight mode to detect changes.
+local currentMode = rfsuite.flightmode.current or "preflight"
 local lastSensorMode
 
 -- Discharge curve with 0.01V per cell resolution from 3.00V to 4.20V (121 points)
@@ -206,8 +206,12 @@ local function smartFuelCalc()
         end
     end
 
-    -- Detect voltage increase after stabilization if not yet flying
-    if #lastVoltages >= 1 and rfsuite.flightmode.current == "preflight" then
+    -- Detect voltage increase after stabilization if not yet flying, Only allow this reset whilst in preflight & disarmed.
+    local isDisarmed  = (rfsuite and rfsuite.session and rfsuite.session.isArmed == false)
+    local isPreflight = (rfsuite and rfsuite.flightmode and rfsuite.flightmode.current == "preflight")
+
+    -- Need at least 2 samples because we read (#lastVoltages - 1)
+    if lastVoltages and #lastVoltages >= 2 and isPreflight and isDisarmed then
         local prev = lastVoltages[#lastVoltages - 1]
         if voltage > prev + voltageThreshold then
             rfsuite.utils.log("Voltage increased after stabilization – resetting...", "info")
@@ -217,7 +221,7 @@ local function smartFuelCalc()
             stabilizeNotBefore = os.clock() + preStabiliseDelay
             return nil  -- Ensure upstream caller knows we are resetting
         end
-    end    
+    end  
 
     -- After voltage is stable, proceed as normal
     local cellCount, packCapacity, reserve, maxCellV, minCellV, fullCellV =

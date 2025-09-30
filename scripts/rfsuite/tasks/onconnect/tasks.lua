@@ -9,9 +9,18 @@
 local tasks = {}
 local tasksList = {}
 local tasksLoaded = false
+local activeLevel = nil
+
+local telemetryTypeChanged = false
 
 local TASK_TIMEOUT_SECONDS = 10
+local MAX_RETRIES = 3            -- how many times to retry a timed-out task
+local RETRY_BACKOFF_SECONDS = 1  -- base backoff; actual backoff = base * 2^(attempt-1)
 
+
+-- Debounce for telemetryTypeChanged -> avoid repeated resets on ELRS/S.Port flaps
+local TYPE_CHANGE_DEBOUNCE = 1.0  -- seconds
+local lastTypeChangeAt = 0
 -- Base path and priority levels
 local BASE_PATH = "tasks/onconnect/tasks/"
 local PRIORITY_LEVELS = {"high", "medium", "low"}
@@ -50,6 +59,9 @@ function tasks.findTasks()
                             priority = level,
                             initialized = false,
                             complete = false,
+                            failed = false,
+                            attempts = 0,
+                            nextEligibleAt = 0,
                             startTime = nil
                         }
                     else
@@ -69,6 +81,9 @@ function tasks.resetAllTasks()
         task.initialized = false
         task.complete = false
         task.startTime = nil
+        task.failed = false
+        task.attempts = 0
+        task.nextEligibleAt = 0        
     end
 
     resetSessionFlags()
@@ -79,10 +94,8 @@ end
 function tasks.wakeup()
     local telemetryActive = rfsuite.tasks.msp.onConnectChecksInit and rfsuite.session.telemetryState
 
-    if rfsuite.session.telemetryTypeChanged then
-        rfsuite.utils.logRotorFlightBanner()
-        --rfsuite.utils.log("Telemetry type changed, resetting tasks.", "info")
-        rfsuite.session.telemetryTypeChanged = false
+    if telemetryTypeChanged then
+        telemetryTypeChanged = false
         tasks.resetAllTasks()
         tasksLoaded = false
         return
@@ -98,61 +111,112 @@ function tasks.wakeup()
         tasks.findTasks()
     end
 
-    local now = os.clock()
-
-    -- Run each task
-    for name, task in pairs(tasksList) do
-        if not task.initialized then
-            task.initialized = true
-            task.startTime = now
-        end
-        if not task.complete then
-            rfsuite.utils.log("Waking up " .. name, "debug")
-            task.module.wakeup()
-            if task.module.isComplete and task.module.isComplete() then
-                task.complete = true
-                task.startTime = nil
-                rfsuite.utils.log("Completed " .. name, "debug")
-            elseif task.startTime and (now - task.startTime) > TASK_TIMEOUT_SECONDS then
-                rfsuite.utils.log("Task '" .. name .. "' timed out.", "info")
-                task.startTime = nil
-            end
+    -- Find the first priority level that isn't complete yet.
+    activeLevel = nil
+    for _, level in ipairs(PRIORITY_LEVELS) do
+        if not rfsuite.session.onConnect[level] then
+            activeLevel = level
+            break
         end
     end
 
-    -- Update session flags as soon as each priority level completes
-    for _, level in ipairs(PRIORITY_LEVELS) do
-        if not rfsuite.session.onConnect[level] then
-            local levelDone = true
-            for _, task in pairs(tasksList) do
-                if task.priority == level and not task.complete then
-                    levelDone = false
-                    break
-                end
-            end
-            if levelDone then
-                rfsuite.session.onConnect[level] = true
-                rfsuite.utils.log("All '" .. level .. "' tasks complete.", "info")
+    -- If no active level, everything is finished – nothing to do this cycle.
+    if not activeLevel then
+        return
+    end
 
-                -- Signal the session connected immediately when high priority finishes
-                if level == "high" then
-                    rfsuite.utils.playFileCommon("beep.wav")
-                    rfsuite.flightmode.current = "preflight"
-                    rfsuite.tasks.events.flightmode.reset()
-                    rfsuite.session.isConnectedHigh = true
-                    return
-                elseif level == "medium" then
-                    rfsuite.session.isConnectedMedium = true
-                    return
-                elseif level == "low" then 
-                    rfsuite.session.isConnectedLow = true    
-                    rfsuite.session.isConnected = true  
-                    collectgarbage()
-                    return
+    local now = os.clock()
+
+    -- Only run tasks from the active level.
+    for name, task in pairs(tasksList) do
+        if task.priority == activeLevel then
+            -- Skip failed tasks entirely
+            if task.failed then goto continue end
+
+            -- Respect backoff window
+            if task.nextEligibleAt and task.nextEligibleAt > now then
+                goto continue
+            end
+
+            if not task.initialized then
+                task.initialized = true
+                task.startTime = now
+            end
+
+            if not task.complete then
+                rfsuite.utils.log("Waking up " .. name, "debug")
+                task.module.wakeup()
+                if task.module.isComplete and task.module.isComplete() then
+                    task.complete = true
+                    task.startTime = nil
+                    task.nextEligibleAt = 0
+                    rfsuite.utils.log("Completed " .. name, "debug")
+                elseif task.startTime and (now - task.startTime) > TASK_TIMEOUT_SECONDS then
+                    -- Timeout: re-queue with backoff or mark failed
+                    task.attempts = (task.attempts or 0) + 1
+                    if task.attempts <= MAX_RETRIES then
+                        local backoff = RETRY_BACKOFF_SECONDS * (2 ^ (task.attempts - 1))
+                        task.nextEligibleAt = now + backoff
+                        task.initialized = false
+                        task.startTime = nil
+                        rfsuite.utils.log(
+                            string.format("Task '%s' timed out. Re-queueing (attempt %d/%d) in %.1fs.",
+                                        name, task.attempts, MAX_RETRIES, backoff), "info")
+                    else
+                        task.failed = true
+                        task.startTime = nil
+                        rfsuite.utils.log(
+                            string.format("Task '%s' failed after %d attempts. Skipping.", name, MAX_RETRIES), "info")
+                    end
                 end
             end
+            ::continue::
+        end
+    end
+
+
+    -- Check if the active level just finished; if so, set flags and return early.
+    local levelDone = true
+    for _, task in pairs(tasksList) do
+        if task.priority == activeLevel and not task.complete then
+            levelDone = false
+            break
+        end
+    end
+
+    if levelDone then
+        rfsuite.session.onConnect[activeLevel] = true
+        rfsuite.utils.log("All [" .. activeLevel .. "] tasks complete.", "info")
+
+        if activeLevel == "high" then
+            rfsuite.utils.playFileCommon("beep.wav")
+            rfsuite.flightmode.current = "preflight"
+            rfsuite.tasks.events.flightmode.reset()
+            rfsuite.session.isConnectedHigh = true
+            return
+        elseif activeLevel == "medium" then
+            rfsuite.session.isConnectedMedium = true
+            return
+        elseif activeLevel == "low" then
+            rfsuite.session.isConnectedLow = true
+            rfsuite.session.isConnected = true
+            rfsuite.utils.log("Connection [established].", "info")
+            return
         end
     end
 end
+
+function tasks.setTelemetryTypeChanged()
+    telemetryTypeChanged = true
+    lastTypeChangeAt = os.clock()
+end
+
+function tasks.active()
+    if not activeLevel then
+        return false
+    end
+    return true
+end
+
 
 return tasks
