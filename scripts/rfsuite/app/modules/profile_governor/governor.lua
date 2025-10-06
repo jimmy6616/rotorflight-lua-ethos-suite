@@ -10,12 +10,12 @@ local enableWakeup = false
 local prevConnectedState = nil
 local initTime = os.clock()
 local governorDisabledMsg = false
+local app = rfsuite.app
 
 local function openPage(pidx, title, script)
 
 
     rfsuite.tasks.msp.protocol.mspIntervalOveride = nil
-    rfsuite.app.formLines = {}
 
     rfsuite.app.triggers.isReady = false
     rfsuite.app.uiState = rfsuite.app.uiStatus.mainMenu
@@ -32,6 +32,14 @@ local function openPage(pidx, title, script)
             rfsuite.app.gfx_buttons[i] = nil
         end
     end    
+
+    if app.formFields then
+        for i = 1, #app.formFields do app.formFields[i] = nil end
+    end
+    if app.formLines then
+        for i = 1, #app.formLines do app.formLines[i] = nil end
+    end
+
 
     -- size of buttons
     if rfsuite.preferences.general.iconsize == nil or rfsuite.preferences.general.iconsize == "" then
@@ -106,6 +114,7 @@ local function openPage(pidx, title, script)
     local pages = S_PAGES
     local lc = 0
     local bx = 0
+    local y = 0
 
 
 

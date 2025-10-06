@@ -293,10 +293,15 @@ function ui.openMainMenu()
 
     utils.reportMemoryUsage("app.openMainMenu", "start")
 
-    app.formFields         = {}
+    if app.formFields then
+        for i = 1, #app.formFields do app.formFields[i] = nil end
+    end
+    if app.formLines then
+        for i = 1, #app.formLines do app.formLines[i] = nil end
+    end
+
     app.formFieldsOffline  = {}
     app.formFieldsBGTask   = {}
-    app.formLines          = {}
     app.lastLabel          = nil
     app.isOfflinePage      = false
     app.Page               = nil
@@ -437,9 +442,14 @@ function ui.openMainMenuSub(activesection)
 
     utils.reportMemoryUsage("app.openMainMenuSub", "start")
 
-    app.formFields        = {}
+    if app.formFields then
+        for i = 1, #app.formFields do app.formFields[i] = nil end
+    end
+    if app.formLines then
+        for i = 1, #app.formLines do app.formLines[i] = nil end
+    end    
+
     app.formFieldsOffline = {}
-    app.formLines         = {}
     app.lastLabel         = nil
     app.isOfflinePage     = false
     app.gfx_buttons[activesection] = {}
@@ -623,7 +633,7 @@ function ui.fieldBoolean(i)
     -- Label / inline handling
     if f.inline and f.inline >= 1 and f.label then
         if radioText == 2 and f.t2 then f.t = f.t2 end
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -688,7 +698,7 @@ function ui.fieldChoice(i)
 
     if f.inline and f.inline >= 1 and f.label then
         if radioText == 2 and f.t2 then f.t = f.t2 end
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -738,7 +748,7 @@ function ui.fieldSlider(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -818,7 +828,7 @@ function ui.fieldNumber(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -915,7 +925,7 @@ function ui.fieldSource(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -984,7 +994,7 @@ function ui.fieldSensor(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -1053,7 +1063,7 @@ function ui.fieldColor(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -1126,7 +1136,7 @@ function ui.fieldSwitch(i)
     local posField, posText
 
     if f.inline and f.inline >= 1 and f.label then
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -1197,7 +1207,7 @@ function ui.fieldStaticText(i)
 
     if f.inline and f.inline >= 1 and f.label then
         if radioText == 2 and f.t2 then f.t = f.t2 end
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -1241,7 +1251,7 @@ function ui.fieldText(i)
 
     if f.inline and f.inline >= 1 and f.label then
         if radioText == 2 and f.t2 then f.t = f.t2 end
-        local p = app.utils.getInlinePositions(f, page)
+        local p = app.utils.getInlinePositions(f)
         posText, posField = p.posText, p.posField
         form.addStaticText(formLines[app.formLineCnt], posText, f.t)
     else
@@ -1386,9 +1396,14 @@ function ui.openPage(idx, title, script, extra1, extra2, extra3, extra5, extra6)
     -- Global UI state; clear form data.
     app.uiState          = app.uiStatus.pages
     app.triggers.isReady = false
-    app.formFields       = {}
-    app.formLines        = {}
     app.lastLabel        = nil
+
+    if app.formFields then
+        for i = 1, #app.formFields do app.formFields[i] = nil end
+    end
+    if app.formLines then
+        for i = 1, #app.formLines do app.formLines[i] = nil end
+    end
 
     -- Load module.
     local modulePath = "app/modules/" .. script
@@ -1749,7 +1764,11 @@ function ui.injectApiAttributes(formField, f, v)
 end
 
 -- Update form fields with MSP API values/attributes
-function ui.mspApiUpdateFormAttributes(values, structure)
+function ui.mspApiUpdateFormAttributes()
+
+  local app = rfsuite.app
+  local values = app.Page.apidata.values
+  local structure = app.Page.apidata.structure
 
   local app   = rfsuite.app
   local utils   = rfsuite.utils
@@ -1925,9 +1944,11 @@ function ui.requestPage()
         state.currentIndex = 1
         app.triggers.isReady = true
         if app.Page.postRead then app.Page.postRead(app.Page) end
-        app.ui.mspApiUpdateFormAttributes(app.Page.apidata.values, app.Page.apidata.structure)
+        app.ui.mspApiUpdateFormAttributes()
         if app.Page.postLoad then app.Page.postLoad(app.Page) else app.triggers.closeProgressLoader = true end
         checkForUnresolvedTimeouts()
+        collectgarbage('collect')
+        collectgarbage('collect')
       end
       return
     end
